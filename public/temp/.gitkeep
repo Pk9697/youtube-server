@@ -1,0 +1,1 @@
+git doesn't keep track of empty folders so .gitkeep instructs git to track this empty folder
