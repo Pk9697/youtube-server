@@ -2,6 +2,8 @@ import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 
+// get all the functionalities or properties express provides by calling it
+
 const app = express()
 
 // cors-> Cross-origin resource sharing to allow which clients to access this api from, * for all
