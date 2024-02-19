@@ -10,6 +10,9 @@ import { DB_NAME } from '../constants.js'
 // so we can use 'process.exit()' to exit current process where our application is running
 // using diff codes 0 for successful exit and 1 for failure exit
 
+// mongoose.connect returns an object which we can call connectionInstance which includes many properties ,
+// through which we can know about our connection with db
+
 // console logging 'connectionInstance.connection.host' to check where our MongoDB is connected,
 // on development or production server
 
@@ -18,7 +21,7 @@ const connectDb = async () => {
     const connectionInstance = await mongoose.connect(`${process.env.MONGODB_URI}/${DB_NAME}`)
     console.log(`MongoDB connected !! DB HOST: ${connectionInstance.connection.host}`)
   } catch (err) {
-    console.error('MONGODB connection error', err)
+    console.error('MongoDB connection error', err)
     process.exit(1)
   }
 }
