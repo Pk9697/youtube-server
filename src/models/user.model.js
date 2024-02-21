@@ -1,3 +1,4 @@
+/* eslint-disable func-names */
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable import/prefer-default-export */
 // file named as user.model.js for personal convention, as it is a standard practice
@@ -79,7 +80,7 @@ const userSchema = new Schema(
 // will also hash password again and again , and we want to update password only the first time or while updating password
 // so we get access to check whether a particular field is updated or not using 'this.isModified(<fieldname>)'
 
-userSchema.pre('save', async function cb(next) {
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next()
   this.password = await bcrypt.hash(this.password, 10)
   return next()
@@ -89,14 +90,14 @@ userSchema.pre('save', async function cb(next) {
 // since bcrypt hashed our password so it can also decrypt hashed password and can compare
 // with the password sent from client to verify whether correct password is sent from client to login or not
 
-userSchema.methods.isPasswordCorrect = async function fn(password) {
+userSchema.methods.isPasswordCorrect = async function (password) {
   const result = await bcrypt.compare(password, this.password)
   return result
 }
 
 // jwt.sign fxn requires payload which you want to send to client,secret key and token expiry
 
-userSchema.methods.generateAccessToken = async function fn() {
+userSchema.methods.generateAccessToken = async function () {
   return jwt.sign(
     {
       _id: this._id,
@@ -114,7 +115,7 @@ userSchema.methods.generateAccessToken = async function fn() {
 // refresh token consists of less payload,
 // cos refresh token as name implies gets refreshed multiple times so we only keep id inside payload
 
-userSchema.methods.generateRefreshToken = async function fn() {
+userSchema.methods.generateRefreshToken = async function () {
   return jwt.sign(
     {
       _id: this._id,
