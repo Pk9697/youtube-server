@@ -1,3 +1,4 @@
+/* eslint-disable import/first */
 import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
@@ -34,6 +35,8 @@ app.use(express.urlencoded({ extended: true, limit: '16kb' }))
 
 // to make a folder publically available so that anywhere one can access it
 // mainly used to store pdf,image,video from client to our local server folder
+// make the uploads path of public folder available to the client
+// visit for more details https://expressjs.com/en/starter/static-files.html
 
 app.use(express.static('public'))
 
@@ -41,5 +44,13 @@ app.use(express.static('public'))
 // request where authorization is needed
 
 app.use(cookieParser())
+
+// standard practice routes import here after all previous configs
+
+import router from './routes/index.js'
+
+// use express router
+
+app.use('/', router)
 
 export default app
