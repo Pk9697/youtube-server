@@ -1,29 +1,26 @@
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable import/prefer-default-export */
+import jwt from 'jsonwebtoken'
 import { User } from '../../../models/user.model.js'
 import { ApiError } from '../../../utils/ApiError.js'
 import { ApiResponse } from '../../../utils/ApiResponse.js'
 import { asyncHandler } from '../../../utils/asyncHandler.js'
 import { uploadOnCloudinary } from '../../../utils/cloudinary.js'
 
-const generateAccessAndRefreshTokens = async (userId) => {
-  try {
-    const user = await User.findById(userId)
-    const accessToken = await user.generateAccessToken()
-    const refreshToken = await user.generateRefreshToken()
+const generateAccessAndRefreshTokens = asyncHandler(async (userId) => {
+  const user = await User.findById(userId)
+  const accessToken = await user.generateAccessToken()
+  const refreshToken = await user.generateRefreshToken()
 
-    user.refreshToken = refreshToken
+  user.refreshToken = refreshToken
 
-    // when trying to save refreshToken it will give error
-    // cos required fields like password etc are not provided here so we exclude validateBeforeSave here
+  // when trying to save refreshToken it will give error
+  // cos required fields like password etc are not provided here so we exclude validateBeforeSave here
 
-    await user.save({ validateBeforeSave: false })
+  await user.save({ validateBeforeSave: false })
 
-    return { accessToken, refreshToken }
-  } catch (err) {
-    throw new ApiError(500, 'Something went wrong while generating access and refresh tokens')
-  }
-}
+  return { accessToken, refreshToken }
+})
 
 const registerUser = asyncHandler(async (req, res) => {
   // steps
@@ -102,11 +99,6 @@ const registerUser = asyncHandler(async (req, res) => {
 
   return res.status(201).json(new ApiResponse(200, createdUser, 'User registered successfully'))
 })
-
-// accessToken is usually short lived compared to refreshToken which means accessToken is expired before refreshToken cos of security reasons
-// then user would have to login again so to prevent this when accessToken expires then client can hit an endpoint where in controller ,
-// client's refreshToken stored in cookie or via auth header is compared with refreshToken stored in db for that user,
-// if same then new accessToken is generated and provided to client which it can use for other requests where authentication is required
 
 const loginUser = asyncHandler(async (req, res) => {
   // steps
@@ -206,4 +198,55 @@ const logoutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, 'Logged out successfully'))
 })
 
-export { registerUser, loginUser, logoutUser }
+// accessToken is usually short lived compared to refreshToken which means accessToken is expired before refreshToken cos of security reasons
+// then user would have to login again so to prevent this when accessToken expires then client can hit an endpoint where in controller ,
+// client's refreshToken stored in cookie or via auth header is compared with refreshToken stored in db for that user,
+// if same then new accessToken is generated and provided to client which it can use for other requests where authentication is required
+// so this is the endpoint controller refreshAccessToken which we will make client hit when it's accessToken expires to refresh accessToken
+
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const incomingRefreshToken = req.cookies?.refreshToken || req.body.refreshToken
+
+  if (!incomingRefreshToken) {
+    throw new ApiError(401, 'Unauthorized request! refreshToken not received')
+  }
+
+  const decodedRefreshToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET)
+
+  const user = await User.findById(decodedRefreshToken?._id)
+
+  if (!user) {
+    throw new ApiError(401, 'Invalid refresh token!')
+  }
+
+  if (incomingRefreshToken !== user?.refreshToken) {
+    throw new ApiError(401, 'Invalid refresh token! does not match with refreshToken stored in db')
+  }
+
+  const options = {
+    httpOnly: true,
+    secure: true,
+  }
+
+  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id)
+
+  const loggedInUser = await User.findById(user._id).select('-password -refreshToken')
+
+  return res
+    .status(200)
+    .cookie('accessToken', accessToken, options)
+    .cookie('refreshToken', refreshToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        {
+          user: loggedInUser,
+          accessToken,
+          refreshToken,
+        },
+        'Access and refresh token refreshed'
+      )
+    )
+})
+
+export { registerUser, loginUser, logoutUser, refreshAccessToken }

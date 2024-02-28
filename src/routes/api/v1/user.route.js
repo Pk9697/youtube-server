@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { loginUser, logoutUser, registerUser } from '../../../controllers/api/v1/user.controller.js'
+import { loginUser, logoutUser, refreshAccessToken, registerUser } from '../../../controllers/api/v1/user.controller.js'
 import { upload } from '../../../middlewares/multer.middleware.js'
 import { verifyJwt } from '../../../middlewares/auth.middleware.js'
 
@@ -33,5 +33,7 @@ router.route('/login').post(loginUser)
 // can attach as many mw as we want cos using next it would execute 1 after another till we get to our controller and finish executing
 
 router.route('/logout').post(verifyJwt, logoutUser)
+
+router.route('/refresh-token').post(refreshAccessToken)
 
 export default router
