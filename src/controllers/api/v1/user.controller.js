@@ -7,20 +7,24 @@ import { ApiResponse } from '../../../utils/ApiResponse.js'
 import { asyncHandler } from '../../../utils/asyncHandler.js'
 import { uploadOnCloudinary } from '../../../utils/cloudinary.js'
 
-const generateAccessAndRefreshTokens = asyncHandler(async (userId) => {
-  const user = await User.findById(userId)
-  const accessToken = await user.generateAccessToken()
-  const refreshToken = await user.generateRefreshToken()
+const generateAccessAndRefreshTokens = async (userId) => {
+  try {
+    const user = await User.findById(userId)
+    const accessToken = await user.generateAccessToken()
+    const refreshToken = await user.generateRefreshToken()
 
-  user.refreshToken = refreshToken
+    user.refreshToken = refreshToken
 
-  // when trying to save refreshToken it will give error
-  // cos required fields like password etc are not provided here so we exclude validateBeforeSave here
+    // when trying to save refreshToken it will give error
+    // cos required fields like password etc are not provided here so we exclude validateBeforeSave here
 
-  await user.save({ validateBeforeSave: false })
+    await user.save({ validateBeforeSave: false })
 
-  return { accessToken, refreshToken }
-})
+    return { accessToken, refreshToken }
+  } catch (err) {
+    throw new ApiError(500, 'Something went wrong while generating access and refresh tokens')
+  }
+}
 
 const registerUser = asyncHandler(async (req, res) => {
   // steps
