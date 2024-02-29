@@ -4,6 +4,7 @@ import {
   logoutUser,
   refreshAccessToken,
   registerUser,
+  updateAccountDetails,
   updatePassword,
 } from '../../../controllers/api/v1/user.controller.js'
 import { upload } from '../../../middlewares/multer.middleware.js'
@@ -43,5 +44,7 @@ router.route('/logout').post(verifyJwt, logoutUser)
 router.route('/refresh-token').post(refreshAccessToken)
 
 router.route('/update-password').post(verifyJwt, updatePassword)
+
+router.route('/update-account').post(verifyJwt, updateAccountDetails)
 
 export default router

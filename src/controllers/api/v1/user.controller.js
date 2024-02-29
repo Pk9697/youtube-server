@@ -286,4 +286,28 @@ const updatePassword = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, {}, 'Password updated successfully!'))
 })
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken, updatePassword }
+/* REQUIRES AUTHENTICATION */
+
+const updateAccountDetails = asyncHandler(async (req, res) => {
+  const { fullName, email } = req.body
+
+  if (!fullName && !email) {
+    throw new ApiError(400, 'Fullname or email is required')
+  }
+
+  const user = await User.findById(req.user._id).select('-password -refreshToken')
+
+  if (fullName) {
+    user.fullName = fullName
+  }
+
+  if (email) {
+    user.email = email
+  }
+
+  await user.save({ validateBeforeSave: false })
+
+  return res.status(200).json(new ApiResponse(200, user, 'Fullname or email updated successfully'))
+})
+
+export { registerUser, loginUser, logoutUser, refreshAccessToken, updatePassword, updateAccountDetails }
