@@ -7,6 +7,9 @@ import { ApiResponse } from '../../../utils/ApiResponse.js'
 import { asyncHandler } from '../../../utils/asyncHandler.js'
 import { uploadOnCloudinary } from '../../../utils/cloudinary.js'
 
+// don't use asyncHandler here cos it is associated with only controllers
+// and not helper functions like this generateAccessAndRefreshTokens
+
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
     const user = await User.findById(userId)
@@ -174,6 +177,8 @@ const loginUser = asyncHandler(async (req, res) => {
     )
 })
 
+/* REQUIRES AUTHENTICATION */
+
 const logoutUser = asyncHandler(async (req, res) => {
   const userId = req.user._id
 
@@ -253,4 +258,32 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     )
 })
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken }
+/* REQUIRES AUTHENTICATION */
+
+const updatePassword = asyncHandler(async (req, res) => {
+  // get user from req.user
+  // get oldPassword,newPassword from req.body
+  // check oldPassword correct or not using method defined in user model
+  // update password with newPassword in db
+  // save user
+  // return success response
+
+  const user = await User.findById(req.user?._id)
+  const { oldPassword, newPassword } = req.body
+
+  const isPasswordValid = await user.isPasswordCorrect(oldPassword)
+
+  if (!isPasswordValid) {
+    throw new ApiError(400, 'Invalid Old Password!')
+  }
+
+  // when it will go to save then pre hook will be called which we defined in user model,
+  // which will hash our newPassword and save in db
+
+  user.password = newPassword
+  await user.save({ validateBeforeSave: false })
+
+  return res.status(200).json(new ApiResponse(200, {}, 'Password updated successfully!'))
+})
+
+export { registerUser, loginUser, logoutUser, refreshAccessToken, updatePassword }
