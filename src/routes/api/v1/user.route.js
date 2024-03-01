@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import {
+  getUserProfile,
   loginUser,
   logoutUser,
   refreshAccessToken,
@@ -52,5 +53,7 @@ router.route('/update-account').post(verifyJwt, updateAccountDetails)
 router.route('/update-avatar').post(verifyJwt, upload.single('avatar'), updateAvatar)
 
 router.route('/update-cover-image').post(verifyJwt, upload.single('coverImage'), updateCoverImage)
+
+router.route('/profile/:userName').post(verifyJwt, getUserProfile)
 
 export default router
