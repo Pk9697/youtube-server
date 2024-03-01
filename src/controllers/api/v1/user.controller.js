@@ -5,7 +5,7 @@ import { User } from '../../../models/user.model.js'
 import { ApiError } from '../../../utils/ApiError.js'
 import { ApiResponse } from '../../../utils/ApiResponse.js'
 import { asyncHandler } from '../../../utils/asyncHandler.js'
-import { uploadOnCloudinary } from '../../../utils/cloudinary.js'
+import { deleteOnCloudinary, uploadOnCloudinary } from '../../../utils/cloudinary.js'
 
 // don't use asyncHandler here cos it is associated with only controllers
 // and not helper functions like this generateAccessAndRefreshTokens
@@ -78,6 +78,7 @@ const registerUser = asyncHandler(async (req, res) => {
   // upload on cloudinary
 
   const uploadedAvatar = await uploadOnCloudinary(avatarLocalPath)
+  console.log(uploadedAvatar)
 
   const uploadedCoverImage = coverImageLocalPath ? await uploadOnCloudinary(coverImageLocalPath) : null
 
@@ -295,6 +296,11 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Fullname or email is required')
   }
 
+  const existingUser = await User.findOne({ email })
+  if (existingUser) {
+    throw new ApiError(401, 'Email already exists!')
+  }
+
   const user = await User.findById(req.user._id).select('-password -refreshToken')
 
   if (fullName) {
@@ -310,4 +316,93 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, user, 'Fullname or email updated successfully'))
 })
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken, updatePassword, updateAccountDetails }
+/* REQUIRES AUTHENTICATION */
+/* REQUIRES MULTER MW for file access */
+
+const updateAvatar = asyncHandler(async (req, res) => {
+  // get uploaded file from client from req.file not req.files cos
+  // here we would be accepting single file only so multer provides access to that file using req.file
+  const avatarLocalPath = req.file?.path
+
+  if (!avatarLocalPath) {
+    throw new ApiError(400, 'Avatar field is required')
+  }
+
+  const uploadedAvatar = await uploadOnCloudinary(avatarLocalPath)
+
+  if (!uploadedAvatar) {
+    throw new ApiError(400, 'Avatar upload on cloudinary failed')
+  }
+
+  const user = await User.findById(req.user._id)
+  const existingAvatarPublicId = await user?.avatar?.split('/').slice(-1)[0].split('.')[0]
+  await deleteOnCloudinary(existingAvatarPublicId)
+
+  user.avatar = uploadedAvatar.url
+  await user.save({ validateBeforeSave: false })
+
+  // or
+  // const user = await User.findByIdAndUpdate(
+  //   req.user?._id,
+  //   {
+  //     $set: {
+  //       avatar: uploadedAvatar.url,
+  //     },
+  //   },
+  //   { new: true }
+  // ).select('-password -refreshToken')
+
+  // TODO delete previous uploaded media from cloudinary
+
+  return res.status(200).json(new ApiResponse(200, user, 'Avatar updated successfully!'))
+})
+
+/* REQUIRES AUTHENTICATION */
+/* REQUIRES MULTER MW for file access */
+
+const updateCoverImage = asyncHandler(async (req, res) => {
+  const coverImageLocalPath = req.file?.path
+
+  if (!coverImageLocalPath) {
+    throw new ApiError(400, 'CoverImage field is required')
+  }
+
+  const uploadedCoverImage = await uploadOnCloudinary(coverImageLocalPath)
+
+  if (!uploadedCoverImage) {
+    throw new ApiError(400, 'coverImage upload on cloudinary failed')
+  }
+
+  const user = await User.findById(req.user._id)
+  const existingCoverImagePublicId = await user?.coverImage?.split('/').slice(-1)[0].split('.')[0]
+  await deleteOnCloudinary(existingCoverImagePublicId)
+
+  user.coverImage = uploadedCoverImage.url
+  await user.save({ validateBeforeSave: false })
+
+  // or
+  // const user = await User.findByIdAndUpdate(
+  //   req.user?._id,
+  //   {
+  //     $set: {
+  //       coverImage: uploadedCoverImage.url,
+  //     },
+  //   },
+  //   { new: true }
+  // ).select('-password -refreshToken')
+
+  // TODO delete previous uploaded media from cloudinary
+
+  return res.status(200).json(new ApiResponse(200, user, 'coverImage updated successfully!'))
+})
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  updatePassword,
+  updateAccountDetails,
+  updateAvatar,
+  updateCoverImage,
+}

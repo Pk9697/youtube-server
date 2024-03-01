@@ -5,6 +5,8 @@ import {
   refreshAccessToken,
   registerUser,
   updateAccountDetails,
+  updateAvatar,
+  updateCoverImage,
   updatePassword,
 } from '../../../controllers/api/v1/user.controller.js'
 import { upload } from '../../../middlewares/multer.middleware.js'
@@ -46,5 +48,9 @@ router.route('/refresh-token').post(refreshAccessToken)
 router.route('/update-password').post(verifyJwt, updatePassword)
 
 router.route('/update-account').post(verifyJwt, updateAccountDetails)
+
+router.route('/update-avatar').post(verifyJwt, upload.single('avatar'), updateAvatar)
+
+router.route('/update-cover-image').post(verifyJwt, upload.single('coverImage'), updateCoverImage)
 
 export default router

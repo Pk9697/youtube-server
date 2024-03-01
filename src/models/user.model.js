@@ -51,6 +51,16 @@ const userSchema = new Schema(
       type: String, // uploaded file url from cloudinary (uploaded file in cloudinary provides url of the file)
       required: true,
     },
+    // avatar: [
+    //   {
+    //     type: String,
+    //     required: true,
+    //   },
+    //   {
+    //     type: String,
+    //     required: true,
+    //   },
+    // ],
     coverImage: {
       type: String, // uploaded file url from cloudinary
     },
