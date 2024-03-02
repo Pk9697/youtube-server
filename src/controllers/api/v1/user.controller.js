@@ -408,6 +408,11 @@ const getUserProfile = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Username is required!')
   }
 
+  // mongoose allows us to write aggregation queries
+  // till now we are only familiar with with normal mongoDb queries like insertMany , updateMany  etc
+  // but true power of mongoDB which developers use in production is achieved by aggregation queries to do complex queries
+  // search mongodb aggregation pipeline for more details
+
   // using aggregation pipeline, in first stage we find current user/channel using $match operator,
   // then in next stage using $lookup operator and this current user/channel,
   // we find all the users whose channel id is this current user/channel
