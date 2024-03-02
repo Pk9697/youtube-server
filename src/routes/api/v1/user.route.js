@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import {
   getUserProfile,
+  getWatchHistory,
   loginUser,
   logoutUser,
   refreshAccessToken,
@@ -46,14 +47,16 @@ router.route('/logout').post(verifyJwt, logoutUser)
 
 router.route('/refresh-token').post(refreshAccessToken)
 
-router.route('/update-password').post(verifyJwt, updatePassword)
+router.route('/update-password').patch(verifyJwt, updatePassword)
 
-router.route('/update-account').post(verifyJwt, updateAccountDetails)
+router.route('/update-account').patch(verifyJwt, updateAccountDetails)
 
-router.route('/update-avatar').post(verifyJwt, upload.single('avatar'), updateAvatar)
+router.route('/update-avatar').patch(verifyJwt, upload.single('avatar'), updateAvatar)
 
-router.route('/update-cover-image').post(verifyJwt, upload.single('coverImage'), updateCoverImage)
+router.route('/update-cover-image').patch(verifyJwt, upload.single('coverImage'), updateCoverImage)
 
 router.route('/profile/:userName').post(verifyJwt, getUserProfile)
+
+router.route('/watch-history').post(verifyJwt, getWatchHistory)
 
 export default router

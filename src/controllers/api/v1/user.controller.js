@@ -1,6 +1,7 @@
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable import/prefer-default-export */
 import jwt from 'jsonwebtoken'
+import mongoose from 'mongoose'
 import { User } from '../../../models/user.model.js'
 import { ApiError } from '../../../utils/ApiError.js'
 import { ApiResponse } from '../../../utils/ApiResponse.js'
@@ -317,7 +318,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 })
 
 /* REQUIRES AUTHENTICATION */
-/* REQUIRES MULTER MW for file access */
+/* REQUIRES MULTER MIDDLEWARE TO GET ACCESS TO UPLOADED FILE */
 
 const updateAvatar = asyncHandler(async (req, res) => {
   // get uploaded file from client from req.file not req.files cos
@@ -358,7 +359,7 @@ const updateAvatar = asyncHandler(async (req, res) => {
 })
 
 /* REQUIRES AUTHENTICATION */
-/* REQUIRES MULTER MW for file access */
+/* REQUIRES MULTER MIDDLEWARE TO GET ACCESS TO UPLOADED FILE */
 
 const updateCoverImage = asyncHandler(async (req, res) => {
   const coverImageLocalPath = req.file?.path
@@ -473,6 +474,71 @@ const getUserProfile = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, channel[0], 'User channel fetched successfully!'))
 })
 
+/* REQUIRES AUTHENTICATION */
+
+// * id which we get from req.user._id is in string which when we use to query, gets
+// internally converted by mongoose in mongodb object id for normal queries like findbyid etc
+// but when we use aggregation pipeline mongoose here doesn't do anything cos it directly interacts with mongodb
+// therefore we need to convert it in mongodb object id when we use aggregation
+
+// in 1st stage we are finding curr logged in user
+// in 2nd stage we are populating watchHistory which contains video ids from video model
+// and in same stage we are populating owner field which is an user id from user model using pipeline
+// and further selecting the fields which we want to send to client of each user using $project which is also a pipeline
+// and is nested so we call it as sub pipeline
+// and using addFields to overwrite owner field with populated user selecting 1st object of array $owner which we recieve
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+  const user = await User.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(req.user._id),
+      },
+    },
+    {
+      $lookup: {
+        from: 'videos',
+        localField: 'watchHistory',
+        foreignField: '_id',
+        as: 'watchHistory',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'owner',
+              foreignField: '_id',
+              as: 'owner',
+              pipeline: [
+                {
+                  $project: {
+                    userName: 1,
+                    email: 1,
+                    fullName: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $first: '$owner',
+              },
+            },
+          },
+        ],
+      },
+    },
+  ])
+
+  // aggregation pipeline sends response as an array of objects ,
+  // here only 1 document would be matched for curr user
+  // and we want to send only watchHistory which will be an array of objects
+
+  return res.status(200).json(new ApiResponse(200, user[0].watchHistory, 'User watch history fetched successfully'))
+})
+
 export {
   registerUser,
   loginUser,
@@ -483,4 +549,5 @@ export {
   updateAvatar,
   updateCoverImage,
   getUserProfile,
+  getWatchHistory,
 }
