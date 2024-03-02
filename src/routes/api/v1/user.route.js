@@ -55,8 +55,8 @@ router.route('/update-avatar').patch(verifyJwt, upload.single('avatar'), updateA
 
 router.route('/update-cover-image').patch(verifyJwt, upload.single('coverImage'), updateCoverImage)
 
-router.route('/profile/:userName').post(verifyJwt, getUserProfile)
+router.route('/profile/:userName').get(verifyJwt, getUserProfile)
 
-router.route('/watch-history').post(verifyJwt, getWatchHistory)
+router.route('/watch-history').get(verifyJwt, getWatchHistory)
 
 export default router
