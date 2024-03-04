@@ -1,7 +1,6 @@
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable import/prefer-default-export */
 import jwt from 'jsonwebtoken'
-import mongoose from 'mongoose'
 import { User } from '../../../models/user.model.js'
 import { ApiError } from '../../../utils/ApiError.js'
 import { ApiResponse } from '../../../utils/ApiResponse.js'
@@ -355,8 +354,6 @@ const updateAvatar = asyncHandler(async (req, res) => {
   //   { new: true }
   // ).select('-password -refreshToken')
 
-  // TODO delete previous uploaded media from cloudinary
-
   return res.status(200).json(new ApiResponse(200, user, 'Avatar updated successfully!'))
 })
 
@@ -393,8 +390,6 @@ const updateCoverImage = asyncHandler(async (req, res) => {
   //   },
   //   { new: true }
   // ).select('-password -refreshToken')
-
-  // TODO delete previous uploaded media from cloudinary
 
   return res.status(200).json(new ApiResponse(200, user, 'coverImage updated successfully!'))
 })
@@ -486,7 +481,9 @@ const getUserProfile = asyncHandler(async (req, res) => {
 // * id which we get from req.user._id is in string which when we use to query, gets
 // internally converted by mongoose in mongodb object id for normal queries like findbyid etc
 // but when we use aggregation pipeline mongoose here doesn't do anything cos it directly interacts with mongodb
-// therefore we need to convert it in mongodb object id when we use aggregation
+// therefore we need to convert it in mongodb object id when we use aggregation using
+// 'new mongoose.Types.ObjectId(req.user._id)'
+// * but it's now derecated and working without converting to ObjectId
 
 // in 1st stage we are finding curr logged in user
 // in 2nd stage we are populating watchHistory which contains video ids from video model
@@ -499,7 +496,7 @@ const getWatchHistory = asyncHandler(async (req, res) => {
   const user = await User.aggregate([
     {
       $match: {
-        _id: new mongoose.Types.ObjectId(req.user._id),
+        _id: req.user._id,
       },
     },
     {
