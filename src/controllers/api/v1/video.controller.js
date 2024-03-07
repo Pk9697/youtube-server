@@ -1,5 +1,5 @@
-/* eslint-disable import/prefer-default-export */
 /* eslint-disable no-underscore-dangle */
+import { User } from '../../../models/user.model.js'
 import { Video } from '../../../models/video.model.js'
 import { ApiError } from '../../../utils/ApiError.js'
 import { ApiResponse } from '../../../utils/ApiResponse.js'
@@ -10,6 +10,7 @@ import { uploadOnCloudinary } from '../../../utils/cloudinary.js'
 
 const uploadVideo = asyncHandler(async (req, res) => {
   const { title, description } = req.body
+
   const videoFileLocalPath = req.files?.videoFile ? req.files.videoFile[0].path : null
 
   if (!videoFileLocalPath) {
@@ -89,4 +90,82 @@ const uploadVideo = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(200, videoWithPopulatedOwner[0], 'Video uploaded successfully'))
 })
 
-export { uploadVideo }
+/* REQUIRES NO AUTHENTICATION */
+
+const getAllVideos = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10, query = '', sortBy = 'createdAt', sortType = -1, userId } = req.query
+
+  const options = {
+    page,
+    limit,
+    // sort: { [sortBy]: sortType },
+  }
+
+  const aggregatePipelineStages = []
+
+  if (userId) {
+    const user = await User.findById(userId)
+    if (!user) {
+      throw new ApiError(400, "User doesn't exist")
+    }
+
+    aggregatePipelineStages.push({
+      $match: {
+        owner: user._id,
+      },
+    })
+  }
+
+  if (query) {
+    aggregatePipelineStages.push({
+      $match: {
+        $or: [
+          { title: { $regex: `.*${query}.*`, $options: 'i' } },
+          { description: { $regex: `.*${query}.*`, $options: 'i' } },
+        ],
+      },
+    })
+  }
+
+  // * don't use await here otherwise it fails cos it's going to be attached to aggregatePaginate
+
+  const agg = Video.aggregate([
+    ...aggregatePipelineStages,
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'owner',
+        foreignField: '_id',
+        as: 'owner',
+        pipeline: [
+          {
+            $project: {
+              userName: 1,
+              email: 1,
+              fullName: 1,
+              avatar: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        owner: {
+          $arrayElemAt: ['$owner', 0],
+        },
+      },
+    },
+    {
+      $sort: {
+        [sortBy]: Number(sortType),
+      },
+    },
+  ])
+
+  const videos = await Video.aggregatePaginate(agg, options)
+
+  return res.status(200).json(new ApiResponse(200, videos, 'Videos fetched successfully'))
+})
+
+export { uploadVideo, getAllVideos }

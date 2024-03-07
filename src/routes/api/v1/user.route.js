@@ -43,19 +43,35 @@ router.route('/login').post(loginUser)
 // secured routes
 // can attach as many mw as we want cos using next it would execute 1 after another till we get to our controller and finish executing
 
+/* REQUIRES AUTHENTICATION */
+
 router.route('/logout').post(verifyJwt, logoutUser)
+
+/* REQUIRES NO AUTHENTICATION */
 
 router.route('/refresh-token').post(refreshAccessToken)
 
+/* REQUIRES AUTHENTICATION */
+
 router.route('/update-password').patch(verifyJwt, updatePassword)
+
+/* REQUIRES AUTHENTICATION */
 
 router.route('/update-account').patch(verifyJwt, updateAccountDetails)
 
+/* REQUIRES AUTHENTICATION */
+
 router.route('/update-avatar').patch(verifyJwt, upload.single('avatar'), updateAvatar)
+
+/* REQUIRES AUTHENTICATION */
 
 router.route('/update-cover-image').patch(verifyJwt, upload.single('coverImage'), updateCoverImage)
 
+/* REQUIRES AUTHENTICATION */
+
 router.route('/profile/:userName').get(verifyJwt, getUserProfile)
+
+/* REQUIRES AUTHENTICATION */
 
 router.route('/watch-history').get(verifyJwt, getWatchHistory)
 
