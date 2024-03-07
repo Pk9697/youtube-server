@@ -220,4 +220,28 @@ const updateVideo = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, video, 'Video updated successfully'))
 })
 
-export { uploadVideo, getAllVideos, updateVideo }
+/* REQUIRES AUTHENTICATION AND AUTHORIZATION */
+
+const togglePublishStatus = asyncHandler(async (req, res) => {
+  const { videoId } = req.params
+
+  const video = await Video.findById(videoId)
+
+  if (!video) {
+    throw new ApiError(404, `Video does not exist`)
+  }
+
+  /* AUTHORIZATION CHECK */
+
+  if (!video.owner.equals(req.user._id)) {
+    throw new ApiError(403, `You are not authorized to toggle this video public status`)
+  }
+
+  video.isPublished = !video.isPublished
+
+  await video.save({ validateBeforeSave: false })
+
+  return res.status(200).json(new ApiResponse(200, video, 'Video publish status toggled successfully'))
+})
+
+export { uploadVideo, getAllVideos, updateVideo, togglePublishStatus }
