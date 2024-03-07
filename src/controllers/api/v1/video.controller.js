@@ -4,7 +4,7 @@ import { Video } from '../../../models/video.model.js'
 import { ApiError } from '../../../utils/ApiError.js'
 import { ApiResponse } from '../../../utils/ApiResponse.js'
 import { asyncHandler } from '../../../utils/asyncHandler.js'
-import { uploadOnCloudinary } from '../../../utils/cloudinary.js'
+import { deleteOnCloudinary, uploadOnCloudinary } from '../../../utils/cloudinary.js'
 
 /* REQUIRES AUTHENTICATION */
 
@@ -168,4 +168,56 @@ const getAllVideos = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, videos, 'Videos fetched successfully'))
 })
 
-export { uploadVideo, getAllVideos }
+/* REQUIRES AUTHENTICATION AND AUTHORIZATION */
+
+const updateVideo = asyncHandler(async (req, res) => {
+  const { videoId } = req.params
+
+  const { title, description } = req.body
+
+  const thumbnailLocalPath = req.file?.path
+
+  if (!thumbnailLocalPath && !title?.trim() && !description?.trim()) {
+    throw new ApiError(400, 'Thumbnail, title or description field is required')
+  }
+
+  const video = await Video.findById(videoId)
+
+  if (!video) {
+    throw new ApiError(404, `Video does not exist`)
+  }
+
+  /* AUTHORIZATION CHECK */
+
+  if (!video.owner.equals(req.user._id)) {
+    throw new ApiError(403, `You are not authorized to update this video`)
+  }
+
+  if (title) {
+    video.title = title
+  }
+
+  if (description) {
+    video.description = description
+  }
+
+  if (thumbnailLocalPath) {
+    const uploadedThumbnail = await uploadOnCloudinary(thumbnailLocalPath)
+
+    if (!uploadedThumbnail) {
+      throw new ApiError(400, 'Thumbnail upload on cloudinary failed')
+    }
+
+    const existingThumbnailPublicId = await video?.thumbnail?.split('/').slice(-1)[0].split('.')[0]
+
+    await deleteOnCloudinary(existingThumbnailPublicId)
+
+    video.thumbnail = uploadedThumbnail?.url
+  }
+
+  await video.save({ validateBeforeSave: false })
+
+  return res.status(200).json(new ApiResponse(200, video, 'Video updated successfully'))
+})
+
+export { uploadVideo, getAllVideos, updateVideo }
