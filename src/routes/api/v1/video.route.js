@@ -29,9 +29,9 @@ router.route('/upload').post(
   uploadVideo
 )
 
-/* REQUIRES NO AUTHENTICATION */
+/* REQUIRES AUTHENTICATION */
 
-router.route('/').post(getAllVideos)
+router.route('/').post(verifyJwt, getAllVideos)
 
 /* REQUIRES AUTHENTICATION */
 
@@ -45,6 +45,8 @@ router.route('/toggle/publish/:videoId').patch(verifyJwt, togglePublishStatus)
 
 router.route('/delete/:videoId').delete(verifyJwt, deleteVideo)
 
-router.route('/view/:videoId').get(getVideoById)
+/* REQUIRES AUTHENTICATION */
+
+router.route('/view/:videoId').get(verifyJwt, getVideoById)
 
 export default router

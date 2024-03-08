@@ -7,6 +7,20 @@ import { ApiResponse } from '../../../utils/ApiResponse.js'
 import { asyncHandler } from '../../../utils/asyncHandler.js'
 import { deleteOnCloudinary, uploadOnCloudinary } from '../../../utils/cloudinary.js'
 
+const incrementViewCount = async (videoId) => {
+  const video = await Video.findByIdAndUpdate(
+    videoId,
+    {
+      $inc: { views: 1 },
+    },
+    { new: true }
+  )
+
+  if (!video) {
+    throw new ApiError(404, `Video does not exist`)
+  }
+}
+
 /* REQUIRES AUTHENTICATION */
 
 const uploadVideo = asyncHandler(async (req, res) => {
@@ -86,7 +100,7 @@ const uploadVideo = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(200, videoWithPopulatedOwner[0], 'Video uploaded successfully'))
 })
 
-/* REQUIRES NO AUTHENTICATION */
+/* REQUIRES AUTHENTICATION */
 
 const getAllVideos = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, query = '', sortBy = 'createdAt', sortType = -1, userId } = req.query
@@ -256,10 +270,14 @@ const deleteVideo = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, {}, 'Video deleted successfully'))
 })
 
+/* REQUIRES AUTHENTICATION */
+
 const getVideoById = asyncHandler(async (req, res) => {
   const { videoId } = req.params
 
   // TODO: populate associated likes count and comments
+
+  await incrementViewCount(videoId)
 
   const videoWithPopulatedDetails = await Video.aggregate([
     {
