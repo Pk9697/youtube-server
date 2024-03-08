@@ -332,6 +332,92 @@ const getVideoById = asyncHandler(async (req, res) => {
       },
     },
     {
+      $lookup: {
+        from: 'likes',
+        localField: '_id',
+        foreignField: 'video',
+        as: 'likes',
+      },
+    },
+    {
+      $addFields: {
+        likesCount: {
+          $size: '$likes',
+        },
+        isLiked: {
+          $cond: {
+            if: { $in: [req.user?._id, '$likes.owner'] },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: 'comments',
+        localField: '_id',
+        foreignField: 'video',
+        as: 'comments',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'owner',
+              foreignField: '_id',
+              as: 'owner',
+              pipeline: [
+                {
+                  $project: {
+                    userName: 1,
+                    email: 1,
+                    fullName: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $first: '$owner',
+              },
+            },
+          },
+          {
+            $lookup: {
+              from: 'likes',
+              localField: '_id',
+              foreignField: 'comment',
+              as: 'likes',
+            },
+          },
+          {
+            $addFields: {
+              likesCount: {
+                $size: '$likes',
+              },
+              isLiked: {
+                $cond: {
+                  if: { $in: [req.user?._id, '$likes.owner'] },
+                  then: true,
+                  else: false,
+                },
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        commentsCount: {
+          $size: '$comments',
+        },
+      },
+    },
+    {
       $project: {
         videoFile: 1,
         thumbnail: 1,
@@ -342,6 +428,10 @@ const getVideoById = asyncHandler(async (req, res) => {
         views: 1,
         isPublished: 1,
         createdAt: 1,
+        likesCount: 1,
+        isLiked: 1,
+        comments: 1,
+        commentsCount: 1,
       },
     },
   ])
