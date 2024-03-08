@@ -1,4 +1,5 @@
 /* eslint-disable no-underscore-dangle */
+import mongoose from 'mongoose'
 import { User } from '../../../models/user.model.js'
 import { Video } from '../../../models/video.model.js'
 import { ApiError } from '../../../utils/ApiError.js'
@@ -257,15 +258,12 @@ const deleteVideo = asyncHandler(async (req, res) => {
 
 const getVideoById = asyncHandler(async (req, res) => {
   const { videoId } = req.params
+
   // TODO: populate associated likes count and comments
-  const video = await Video.findById(videoId)
-  if (!video) {
-    throw new ApiError(404, `Video does not exist`)
-  }
 
   const videoWithPopulatedDetails = await Video.aggregate([
     {
-      $match: { _id: video._id },
+      $match: { _id: new mongoose.Types.ObjectId(videoId) },
     },
     {
       $lookup: {
@@ -330,9 +328,11 @@ const getVideoById = asyncHandler(async (req, res) => {
     },
   ])
 
-  console.log({ videoWithPopulatedDetails })
+  if (!videoWithPopulatedDetails.length) {
+    throw new ApiError(404, `Video does not exist`)
+  }
 
-  return res.status(200).json(new ApiResponse(200, videoWithPopulatedDetails, 'Video fetched successfully'))
+  return res.status(200).json(new ApiResponse(200, videoWithPopulatedDetails[0], 'Video fetched successfully'))
 })
 
 export { uploadVideo, getAllVideos, updateVideo, togglePublishStatus, deleteVideo, getVideoById }
