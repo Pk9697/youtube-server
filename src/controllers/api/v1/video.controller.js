@@ -12,13 +12,11 @@ const uploadVideo = asyncHandler(async (req, res) => {
   const { title, description } = req.body
 
   const videoFileLocalPath = req.files?.videoFile ? req.files.videoFile[0].path : null
-
   if (!videoFileLocalPath) {
     throw new ApiError(400, 'VideoFile field is required')
   }
 
   const thumbnailLocalPath = req.files?.thumbnail ? req.files.thumbnail[0].path : null
-
   if (!thumbnailLocalPath) {
     throw new ApiError(400, 'Thumbnail field is required')
   }
@@ -26,13 +24,11 @@ const uploadVideo = asyncHandler(async (req, res) => {
   // upload on cloudinary
 
   const uploadedVideoFile = await uploadOnCloudinary(videoFileLocalPath)
-
   if (!uploadedVideoFile) {
     throw new ApiError(400, 'Video upload on cloudinary failed')
   }
 
   const uploadedThumbnail = await uploadOnCloudinary(thumbnailLocalPath)
-
   if (!uploadedThumbnail) {
     throw new ApiError(400, 'THumbnail upload on cloudinary failed')
   }
@@ -82,7 +78,6 @@ const uploadVideo = asyncHandler(async (req, res) => {
       },
     },
   ])
-
   if (!videoWithPopulatedOwner) {
     throw new ApiError(500, 'Owner field of video population failed')
   }
@@ -172,9 +167,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
 const updateVideo = asyncHandler(async (req, res) => {
   const { videoId } = req.params
-
   const { title, description } = req.body
-
   const thumbnailLocalPath = req.file?.path
 
   if (!thumbnailLocalPath && !title?.trim() && !description?.trim()) {
@@ -182,7 +175,6 @@ const updateVideo = asyncHandler(async (req, res) => {
   }
 
   const video = await Video.findById(videoId)
-
   if (!video) {
     throw new ApiError(404, `Video does not exist`)
   }
@@ -203,14 +195,11 @@ const updateVideo = asyncHandler(async (req, res) => {
 
   if (thumbnailLocalPath) {
     const uploadedThumbnail = await uploadOnCloudinary(thumbnailLocalPath)
-
     if (!uploadedThumbnail) {
       throw new ApiError(400, 'Thumbnail upload on cloudinary failed')
     }
 
-    const existingThumbnailPublicId = await video?.thumbnail?.split('/').slice(-1)[0].split('.')[0]
-
-    await deleteOnCloudinary(existingThumbnailPublicId)
+    await deleteOnCloudinary(video?.thumbnail)
 
     video.thumbnail = uploadedThumbnail?.url
   }
@@ -224,9 +213,7 @@ const updateVideo = asyncHandler(async (req, res) => {
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
   const { videoId } = req.params
-
   const video = await Video.findById(videoId)
-
   if (!video) {
     throw new ApiError(404, `Video does not exist`)
   }
@@ -238,10 +225,34 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
   }
 
   video.isPublished = !video.isPublished
-
   await video.save({ validateBeforeSave: false })
 
   return res.status(200).json(new ApiResponse(200, video, 'Video publish status toggled successfully'))
 })
 
-export { uploadVideo, getAllVideos, updateVideo, togglePublishStatus }
+/* REQUIRES AUTHENTICATION AND AUTHORIZATION */
+
+const deleteVideo = asyncHandler(async (req, res) => {
+  const { videoId } = req.params
+  const video = await Video.findById(videoId)
+  if (!video) {
+    throw new ApiError(404, `Video does not exist`)
+  }
+
+  /* AUTHORIZATION CHECK */
+
+  if (!video.owner.equals(req.user._id)) {
+    throw new ApiError(403, `You are not authorized to delete this video`)
+  }
+
+  await deleteOnCloudinary(video?.thumbnail)
+  await deleteOnCloudinary(video?.videoFile, 'video')
+
+  await Video.findByIdAndDelete(videoId)
+
+  // TODO: delete associated likes,comments and remove from playlist,watchHistory where this video id exists
+
+  return res.status(200).json(new ApiResponse(200, {}, 'Video deleted successfully'))
+})
+
+export { uploadVideo, getAllVideos, updateVideo, togglePublishStatus, deleteVideo }

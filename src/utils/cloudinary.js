@@ -11,6 +11,7 @@ import { v2 as cloudinary } from 'cloudinary'
 // nodejs provides us fs which is file system management which helps us read,write,remove etc files
 
 import fs from 'fs'
+import { ApiError } from './ApiError.js'
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -23,22 +24,26 @@ const uploadOnCloudinary = async (localFilePath) => {
     if (!localFilePath) return null
     const response = await cloudinary.uploader.upload(localFilePath, { resource_type: 'auto' })
     // console.log('File uploaded on cloudinary', response.url)
+
     if (fs.existsSync(localFilePath)) fs.unlinkSync(localFilePath) // remove the locally saved temp file after cloudinary upload successful cos if there was an error on upload to cloudinary it would have been directly caught by catch block
+
     return response
   } catch (err) {
     if (fs.existsSync(localFilePath)) fs.unlinkSync(localFilePath) // remove the locally saved temp file when cloudinary upload failed
+
     return null
   }
 }
 
-const deleteOnCloudinary = async (avatarPublicId) => {
+const deleteOnCloudinary = async (cloudinaryFilePublicUrl, resourceType = 'image') => {
   try {
-    if (!avatarPublicId) return null
-    const response = await cloudinary.uploader.destroy(avatarPublicId)
+    if (!cloudinaryFilePublicUrl) return null
+    const cloudinaryFilePublicId = await cloudinaryFilePublicUrl?.split('/').slice(-1)[0].split('.')[0]
+    const response = await cloudinary.uploader.destroy(cloudinaryFilePublicId, { resource_type: resourceType })
     // console.log('File deleted on cloudinary', response)
     return response
   } catch (err) {
-    return null
+    throw new ApiError(500, 'File delete from cloudinary unsuccessful', [err])
   }
 }
 

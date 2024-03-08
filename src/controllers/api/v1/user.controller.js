@@ -13,6 +13,7 @@ import { deleteOnCloudinary, uploadOnCloudinary } from '../../../utils/cloudinar
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
     const user = await User.findById(userId)
+
     const accessToken = await user.generateAccessToken()
     const refreshToken = await user.generateRefreshToken()
 
@@ -56,7 +57,6 @@ const registerUser = asyncHandler(async (req, res) => {
   const isExistingUser = await User.findOne({
     $or: [{ userName }, { email }],
   })
-
   if (isExistingUser) {
     throw new ApiError(409, 'User with email or userName already exists')
   }
@@ -68,7 +68,6 @@ const registerUser = asyncHandler(async (req, res) => {
   // get proper path from multer where multer has uploaded files to (i.e, ./public/temp/<filename> which we configured)
 
   const avatarLocalPath = req.files?.avatar ? req.files.avatar[0].path : null
-
   const coverImageLocalPath = req.files?.coverImage ? req.files.coverImage[0].path : null
 
   if (!avatarLocalPath) {
@@ -78,8 +77,6 @@ const registerUser = asyncHandler(async (req, res) => {
   // upload on cloudinary
 
   const uploadedAvatar = await uploadOnCloudinary(avatarLocalPath)
-  console.log(uploadedAvatar)
-
   const uploadedCoverImage = coverImageLocalPath ? await uploadOnCloudinary(coverImageLocalPath) : null
 
   if (!uploadedAvatar) {
@@ -100,7 +97,6 @@ const registerUser = asyncHandler(async (req, res) => {
   // pluck out fields from User ref using .select
 
   const createdUser = await User.findById(user._id).select('-password -refreshToken')
-
   if (!createdUser) {
     throw new ApiError(500, 'Register User failed')
   }
@@ -121,7 +117,6 @@ const loginUser = asyncHandler(async (req, res) => {
   // and from raw json data
 
   const { email, userName, password } = req.body
-
   if (!email && !userName) {
     throw new ApiError(400, 'Username or email is required')
   }
@@ -131,7 +126,6 @@ const loginUser = asyncHandler(async (req, res) => {
   const user = await User.findOne({
     $or: [{ userName }, { email }],
   })
-
   if (!user) {
     throw new ApiError(404, 'User does not exist')
   }
@@ -139,7 +133,6 @@ const loginUser = asyncHandler(async (req, res) => {
   // can access methods defined in model from user ref instance not User model
 
   const isPasswordValid = await user.isPasswordCorrect(password)
-
   if (!isPasswordValid) {
     throw new ApiError(401, 'Password incorrect')
   }
@@ -218,7 +211,6 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
   const incomingRefreshToken = req.cookies?.refreshToken || req.body.refreshToken
-
   if (!incomingRefreshToken) {
     throw new ApiError(401, 'Unauthorized request! refreshToken not received')
   }
@@ -226,7 +218,6 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   const decodedRefreshToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET)
 
   const user = await User.findById(decodedRefreshToken?._id)
-
   if (!user) {
     throw new ApiError(401, 'Invalid refresh token!')
   }
@@ -272,10 +263,10 @@ const updatePassword = asyncHandler(async (req, res) => {
   // return success response
 
   const user = await User.findById(req.user?._id)
+
   const { oldPassword, newPassword } = req.body
 
   const isPasswordValid = await user.isPasswordCorrect(oldPassword)
-
   if (!isPasswordValid) {
     throw new ApiError(400, 'Invalid Old Password!')
   }
@@ -293,7 +284,6 @@ const updatePassword = asyncHandler(async (req, res) => {
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
   const { fullName, email } = req.body
-
   if (!fullName && !email) {
     throw new ApiError(400, 'Fullname or email is required')
   }
@@ -325,20 +315,17 @@ const updateAvatar = asyncHandler(async (req, res) => {
   // get uploaded file from client from req.file not req.files cos
   // here we would be accepting single file only so multer provides access to that file using req.file
   const avatarLocalPath = req.file?.path
-
   if (!avatarLocalPath) {
     throw new ApiError(400, 'Avatar field is required')
   }
 
   const uploadedAvatar = await uploadOnCloudinary(avatarLocalPath)
-
   if (!uploadedAvatar) {
     throw new ApiError(400, 'Avatar upload on cloudinary failed')
   }
 
   const user = await User.findById(req.user._id)
-  const existingAvatarPublicId = await user?.avatar?.split('/').slice(-1)[0].split('.')[0]
-  await deleteOnCloudinary(existingAvatarPublicId)
+  await deleteOnCloudinary(user?.avatar)
 
   user.avatar = uploadedAvatar.url
   await user.save({ validateBeforeSave: false })
@@ -362,20 +349,18 @@ const updateAvatar = asyncHandler(async (req, res) => {
 
 const updateCoverImage = asyncHandler(async (req, res) => {
   const coverImageLocalPath = req.file?.path
-
   if (!coverImageLocalPath) {
     throw new ApiError(400, 'CoverImage field is required')
   }
 
   const uploadedCoverImage = await uploadOnCloudinary(coverImageLocalPath)
-
   if (!uploadedCoverImage) {
     throw new ApiError(400, 'coverImage upload on cloudinary failed')
   }
 
   const user = await User.findById(req.user._id)
-  const existingCoverImagePublicId = await user?.coverImage?.split('/').slice(-1)[0].split('.')[0]
-  await deleteOnCloudinary(existingCoverImagePublicId)
+
+  await deleteOnCloudinary(user?.coverImage)
 
   user.coverImage = uploadedCoverImage.url
   await user.save({ validateBeforeSave: false })
@@ -398,7 +383,6 @@ const updateCoverImage = asyncHandler(async (req, res) => {
 
 const getUserProfile = asyncHandler(async (req, res) => {
   const { userName } = req.params
-
   if (!userName?.trim()) {
     throw new ApiError(400, 'Username is required!')
   }
@@ -468,7 +452,6 @@ const getUserProfile = asyncHandler(async (req, res) => {
       },
     },
   ])
-
   if (!channel?.length) {
     throw new ApiError(404, 'Channel does not exist!')
   }
