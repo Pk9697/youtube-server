@@ -3,6 +3,7 @@ import { upload } from '../../../middlewares/multer.middleware.js'
 import {
   deleteVideo,
   getAllVideos,
+  getVideoById,
   togglePublishStatus,
   updateVideo,
   uploadVideo,
@@ -43,5 +44,7 @@ router.route('/toggle/publish/:videoId').patch(verifyJwt, togglePublishStatus)
 /* REQUIRES AUTHENTICATION */
 
 router.route('/delete/:videoId').delete(verifyJwt, deleteVideo)
+
+router.route('/view/:videoId').get(getVideoById)
 
 export default router

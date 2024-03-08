@@ -255,4 +255,84 @@ const deleteVideo = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, {}, 'Video deleted successfully'))
 })
 
-export { uploadVideo, getAllVideos, updateVideo, togglePublishStatus, deleteVideo }
+const getVideoById = asyncHandler(async (req, res) => {
+  const { videoId } = req.params
+  // TODO: populate associated likes count and comments
+  const video = await Video.findById(videoId)
+  if (!video) {
+    throw new ApiError(404, `Video does not exist`)
+  }
+
+  const videoWithPopulatedDetails = await Video.aggregate([
+    {
+      $match: { _id: video._id },
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'owner',
+        foreignField: '_id',
+        as: 'owner',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'subscriptions',
+              localField: '_id',
+              foreignField: 'channel',
+              as: 'subscribers',
+            },
+          },
+          {
+            $addFields: {
+              subscribersCount: {
+                $size: '$subscribers',
+              },
+              isSubscribed: {
+                $cond: {
+                  if: { $in: [req.user?._id, '$subscribers.subscriber'] },
+                  then: true,
+                  else: false,
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              userName: 1,
+              fullName: 1,
+              avatar: 1,
+              subscribersCount: 1,
+              isSubscribed: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        owner: {
+          $arrayElemAt: ['$owner', 0],
+        },
+      },
+    },
+    {
+      $project: {
+        videoFile: 1,
+        thumbnail: 1,
+        owner: 1,
+        title: 1,
+        description: 1,
+        duration: 1,
+        views: 1,
+        isPublished: 1,
+        createdAt: 1,
+      },
+    },
+  ])
+
+  console.log({ videoWithPopulatedDetails })
+
+  return res.status(200).json(new ApiResponse(200, videoWithPopulatedDetails, 'Video fetched successfully'))
+})
+
+export { uploadVideo, getAllVideos, updateVideo, togglePublishStatus, deleteVideo, getVideoById }
