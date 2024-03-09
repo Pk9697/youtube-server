@@ -6,6 +6,9 @@ import { ApiError } from '../../../utils/ApiError.js'
 import { ApiResponse } from '../../../utils/ApiResponse.js'
 import { asyncHandler } from '../../../utils/asyncHandler.js'
 import { deleteOnCloudinary, uploadOnCloudinary } from '../../../utils/cloudinary.js'
+import { Comment } from '../../../models/comment.model.js'
+import { Like } from '../../../models/like.model.js'
+import { Playlist } from '../../../models/playlist.model.js'
 
 const incrementViewCount = async (videoId) => {
   const video = await Video.findByIdAndUpdate(
@@ -263,9 +266,27 @@ const deleteVideo = asyncHandler(async (req, res) => {
   await deleteOnCloudinary(video?.thumbnail)
   await deleteOnCloudinary(video?.videoFile, 'video')
 
-  await Video.findByIdAndDelete(videoId)
+  await Comment.deleteMany({ video: videoId })
+  await Like.deleteMany({ video: videoId })
 
-  // TODO: delete associated likes,comments and remove from playlist,watchHistory where this video id exists
+  // pull out from videos array wherever this video exists in playlist
+  // TODO: TEST these
+
+  await Playlist.updateMany(
+    { videos: { $in: [videoId] } },
+    {
+      $pull: { videos: videoId },
+    }
+  )
+
+  await User.updateMany(
+    { watchHistory: { $in: [videoId] } },
+    {
+      $pull: { watchHistory: videoId },
+    }
+  )
+
+  await Video.findByIdAndDelete(videoId)
 
   return res.status(200).json(new ApiResponse(200, {}, 'Video deleted successfully'))
 })
@@ -274,8 +295,6 @@ const deleteVideo = asyncHandler(async (req, res) => {
 
 const getVideoById = asyncHandler(async (req, res) => {
   const { videoId } = req.params
-
-  // TODO: populate associated likes count and comments
 
   await incrementViewCount(videoId)
 
