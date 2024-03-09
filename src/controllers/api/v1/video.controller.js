@@ -10,7 +10,7 @@ import { Comment } from '../../../models/comment.model.js'
 import { Like } from '../../../models/like.model.js'
 import { Playlist } from '../../../models/playlist.model.js'
 
-const incrementViewCount = async (videoId) => {
+const incrementViewCountAndUpdateWatchHistory = async (videoId, userId) => {
   const video = await Video.findByIdAndUpdate(
     videoId,
     {
@@ -22,6 +22,12 @@ const incrementViewCount = async (videoId) => {
   if (!video) {
     throw new ApiError(404, `Video does not exist`)
   }
+
+  const loggedInUser = await User.findById(userId)
+  const filteredWatchHistory = await loggedInUser.watchHistory.filter((id) => !id.equals(videoId))
+
+  loggedInUser.watchHistory = [videoId, ...filteredWatchHistory]
+  await loggedInUser.save({ validateBeforeSave: false })
 }
 
 /* REQUIRES AUTHENTICATION */
@@ -270,7 +276,6 @@ const deleteVideo = asyncHandler(async (req, res) => {
   await Like.deleteMany({ video: videoId })
 
   // pull out from videos array wherever this video exists in playlist
-  // TODO: TEST these
 
   await Playlist.updateMany(
     { videos: { $in: [videoId] } },
@@ -296,7 +301,7 @@ const deleteVideo = asyncHandler(async (req, res) => {
 const getVideoById = asyncHandler(async (req, res) => {
   const { videoId } = req.params
 
-  await incrementViewCount(videoId)
+  await incrementViewCountAndUpdateWatchHistory(videoId, req.user._id)
 
   const videoWithPopulatedDetails = await Video.aggregate([
     {
