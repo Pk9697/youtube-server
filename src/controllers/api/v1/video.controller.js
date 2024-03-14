@@ -272,6 +272,7 @@ const deleteVideo = asyncHandler(async (req, res) => {
   await deleteOnCloudinary(video?.thumbnail)
   await deleteOnCloudinary(video?.videoFile, 'video')
 
+  // TODO: Delete associated likes of each comment going to be deleted
   await Comment.deleteMany({ video: videoId })
   await Like.deleteMany({ video: videoId })
 

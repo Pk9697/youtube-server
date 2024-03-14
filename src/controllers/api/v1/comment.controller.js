@@ -5,9 +5,9 @@ import { ApiError } from '../../../utils/ApiError.js'
 import { asyncHandler } from '../../../utils/asyncHandler.js'
 import { ApiResponse } from '../../../utils/ApiResponse.js'
 import { Comment } from '../../../models/comment.model.js'
+import { Like } from '../../../models/like.model.js'
 
 const getVideoComments = asyncHandler(async (req, res) => {
-  // TODO: get all comments for a video
   const { videoId } = req.params
   const existingVideo = await Video.findById(videoId)
   if (!existingVideo) {
@@ -84,7 +84,7 @@ const addComment = asyncHandler(async (req, res) => {
   }
 
   const comment = await Comment.create({
-    content,
+    content: content?.trim(),
     video: videoId,
     owner: req.user._id,
   })
@@ -134,4 +134,54 @@ const addComment = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(200, commentWithPopulatedOwner[0], 'Comment created successfully!'))
 })
 
-export { getVideoComments, addComment }
+/* REQUIRES AUTHORIZATION */
+
+const updateComment = asyncHandler(async (req, res) => {
+  const { commentId } = req.params
+  const { content } = req.body
+
+  const existingComment = await Comment.findById(commentId)
+  if (!existingComment) {
+    throw new ApiError(404, 'Comment does not exist!')
+  }
+
+  if (!existingComment.owner.equals(req.user._id)) {
+    throw new ApiError(403, `You are not authorized to delete this video`)
+  }
+
+  if (!content?.trim()) {
+    throw new ApiError(400, 'Content field is required!')
+  }
+
+  const comment = await Comment.findByIdAndUpdate(
+    commentId,
+    {
+      content: content?.trim(),
+    },
+    { new: true }
+  )
+
+  return res.status(200).json(new ApiResponse(200, comment, 'Comment updated successfully!'))
+})
+
+/* REQUIRES AUTHORIZATION */
+
+const deleteComment = asyncHandler(async (req, res) => {
+  const { commentId } = req.params
+
+  const existingComment = await Comment.findById(commentId)
+  if (!existingComment) {
+    throw new ApiError(404, 'Comment does not exist!')
+  }
+
+  if (!existingComment.owner.equals(req.user._id)) {
+    throw new ApiError(403, `You are not authorized to delete this video`)
+  }
+  // TODO: Test Likes deletion
+  await Like.deleteMany({ comment: commentId })
+  await Comment.findByIdAndDelete(commentId)
+
+  return res.status(200).json(new ApiResponse(200, {}, 'Comment along with associated likes deleted successfully'))
+})
+
+export { getVideoComments, addComment, updateComment, deleteComment }
