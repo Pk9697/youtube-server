@@ -37,4 +37,77 @@ const toggleSubscription = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, {}, 'Subscription toggled successfully!'))
 })
 
-export { toggleSubscription }
+// controller to return channel list to which user has subscribed
+
+const getUserSubscribedToChannels = asyncHandler(async (req, res) => {
+  const { subscriberId } = req.params
+
+  const existingSubscriber = await User.findById(subscriberId)
+  if (!existingSubscriber) {
+    throw new ApiError(404, 'Subscriber does not exist!')
+  }
+
+  const channels = await Subscription.aggregate([
+    {
+      $match: {
+        subscriber: new mongoose.Types.ObjectId(subscriberId),
+      },
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'channel',
+        foreignField: '_id',
+        as: 'channel',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'subscriptions',
+              localField: '_id',
+              foreignField: 'channel',
+              as: 'subscribers',
+            },
+          },
+          {
+            $addFields: {
+              subscribersCount: {
+                $size: '$subscribers',
+              },
+              isSubscribed: {
+                $cond: {
+                  if: { $in: [req.user?._id, '$subscribers.subscriber'] },
+                  then: true,
+                  else: false,
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              fullName: 1,
+              avatar: 1,
+              subscribersCount: 1,
+              isSubscribed: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        channel: {
+          $first: '$channel',
+        },
+      },
+    },
+    {
+      $project: {
+        channel: 1,
+      },
+    },
+  ])
+
+  return res.status(200).json(new ApiResponse(200, channels, 'User Subscribed to Channels fetched successfully'))
+})
+
+export { toggleSubscription, getUserSubscribedToChannels }
