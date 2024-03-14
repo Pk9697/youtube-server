@@ -298,6 +298,8 @@ const deleteVideo = asyncHandler(async (req, res) => {
 
 /* REQUIRES AUTHENTICATION */
 
+// TODO: Remove Comment pipeline cos we handled it in Comment controller getVideoComments cos we are using aggregate paginate there which gives us tons of features which frontend can use to handle multiple comments pages
+
 const getVideoById = asyncHandler(async (req, res) => {
   const { videoId } = req.params
 

@@ -36,5 +36,6 @@ module.exports = {
     'import/extensions': 'off',
     'no-console': 'off',
     'import/prefer-default-export': 'off',
+    'no-underscore-dangle': 'off',
   },
 }
