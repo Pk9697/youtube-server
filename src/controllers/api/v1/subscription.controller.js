@@ -110,4 +110,77 @@ const getUserSubscribedToChannels = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, channels, 'User Subscribed to Channels fetched successfully'))
 })
 
-export { toggleSubscription, getUserSubscribedToChannels }
+// controller to return subscribers list of a channel
+
+const getUserChannelSubscribers = asyncHandler(async (req, res) => {
+  const { channelId } = req.params
+
+  const existingChannel = await User.findById(channelId)
+  if (!existingChannel) {
+    throw new ApiError(404, 'Channel does not exist!')
+  }
+
+  const subscribers = await Subscription.aggregate([
+    {
+      $match: {
+        channel: new mongoose.Types.ObjectId(channelId),
+      },
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'subscriber',
+        foreignField: '_id',
+        as: 'subscriber',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'subscriptions',
+              localField: '_id',
+              foreignField: 'channel',
+              as: 'subscribers',
+            },
+          },
+          {
+            $addFields: {
+              subscribersCount: {
+                $size: '$subscribers',
+              },
+              isSubscribed: {
+                $cond: {
+                  if: { $in: [req.user?._id, '$subscribers.subscriber'] },
+                  then: true,
+                  else: false,
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              fullName: 1,
+              avatar: 1,
+              subscribersCount: 1,
+              isSubscribed: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        subscriber: {
+          $first: '$subscriber',
+        },
+      },
+    },
+    {
+      $project: {
+        subscriber: 1,
+      },
+    },
+  ])
+
+  return res.status(200).json(new ApiResponse(200, subscribers, 'User Channel subscribers fetched successfully'))
+})
+
+export { toggleSubscription, getUserSubscribedToChannels, getUserChannelSubscribers }
