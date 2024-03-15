@@ -273,6 +273,11 @@ const deleteVideo = asyncHandler(async (req, res) => {
   await deleteOnCloudinary(video?.thumbnail)
   await deleteOnCloudinary(video?.videoFile, 'video')
 
+  const videoComments = await Comment.find({ video: videoId })
+
+  await Like.deleteMany({
+    comment: { $in: videoComments },
+  })
   await Comment.deleteMany({ video: videoId })
   await Like.deleteMany({ video: videoId })
 
