@@ -255,7 +255,7 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
 })
 
 /* REQUIRES AUTHENTICATION AND AUTHORIZATION */
-// TODO: Delete associated likes of each comment going to be deleted
+// TODO: Test pulling out of playlist and watch history
 
 const deleteVideo = asyncHandler(async (req, res) => {
   const { videoId } = req.params

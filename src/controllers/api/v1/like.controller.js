@@ -14,7 +14,10 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Video does not exist!')
   }
 
-  const existingLike = await Like.findOne({ video: videoId, owner: req.user._id })
+  const existingLike = await Like.findOne({
+    video: videoId,
+    owner: req.user._id,
+  })
 
   if (existingLike) {
     await Like.findByIdAndDelete(existingLike._id)
@@ -36,7 +39,10 @@ const toggleCommentLike = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Comment does not exist!')
   }
 
-  const existingLike = await Like.findOne({ comment: commentId, owner: req.user._id })
+  const existingLike = await Like.findOne({
+    comment: commentId,
+    owner: req.user._id,
+  })
 
   if (existingLike) {
     await Like.findByIdAndDelete(existingLike._id)
@@ -58,7 +64,10 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Tweet does not exist!')
   }
 
-  const existingLike = await Like.findOne({ tweet: tweetId, owner: req.user._id })
+  const existingLike = await Like.findOne({
+    tweet: tweetId,
+    owner: req.user._id,
+  })
 
   if (existingLike) {
     await Like.findByIdAndDelete(existingLike._id)
@@ -72,4 +81,74 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, {}, 'Tweet like toggled successfully!'))
 })
 
-export { toggleVideoLike, toggleCommentLike, toggleTweetLike }
+// get all liked videos of current logged in user
+
+const getLikedVideos = asyncHandler(async (req, res) => {
+  const likedVideos = await Like.aggregate([
+    {
+      $match: {
+        $and: [{ video: { $exists: true } }, { owner: req.user._id }],
+      },
+    },
+    {
+      $lookup: {
+        from: 'videos',
+        localField: 'video',
+        foreignField: '_id',
+        as: 'video',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'owner',
+              foreignField: '_id',
+              as: 'owner',
+              pipeline: [
+                {
+                  $project: {
+                    fullName: 1,
+                    userName: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $arrayElemAt: ['$owner', 0],
+              },
+            },
+          },
+          {
+            $project: {
+              owner: 1,
+              videoFile: 1,
+              thumbnail: 1,
+              title: 1,
+              duration: 1,
+              views: 1,
+              createdAt: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        video: {
+          $arrayElemAt: ['$video', 0],
+        },
+      },
+    },
+    {
+      $project: {
+        video: 1,
+      },
+    },
+  ])
+
+  return res.status(200).json(new ApiResponse(200, likedVideos, 'Logged in user liked videos fetched successfully'))
+})
+
+export { toggleVideoLike, toggleCommentLike, toggleTweetLike, getLikedVideos }
