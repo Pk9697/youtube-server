@@ -5,6 +5,7 @@ import {
   createPlaylist,
   getPlaylistById,
   getUserPlaylists,
+  removeVideoFromPlaylist,
 } from '../../../controllers/api/v1/playlist.controller.js'
 
 const router = Router()
@@ -18,5 +19,7 @@ router.route('/user/:userId').get(getUserPlaylists)
 router.route('/:playlistId').get(getPlaylistById)
 
 router.route('/add').patch(addVideoToPlaylist)
+
+router.route('/remove').patch(removeVideoFromPlaylist)
 
 export default router

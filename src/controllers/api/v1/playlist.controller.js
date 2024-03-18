@@ -170,6 +170,10 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Video does not exist!')
   }
 
+  if (!existingPlaylist.owner.equals(req.user._id)) {
+    throw new ApiError(403, 'You are not authorized to add video to this playlist!')
+  }
+
   const filteredPlaylistVideos = await existingPlaylist.videos.filter((id) => !id.equals(videoId))
 
   existingPlaylist.videos = [videoId, ...filteredPlaylistVideos]
@@ -178,4 +182,28 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, existingPlaylist, 'Added video to playlist successfully!'))
 })
 
-export { createPlaylist, getUserPlaylists, getPlaylistById, addVideoToPlaylist }
+const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
+  const { playlistId, videoId } = req.query
+
+  const existingPlaylist = await Playlist.findById(playlistId)
+  if (!existingPlaylist) {
+    throw new ApiError(404, 'Playlist does not exist!')
+  }
+
+  const existingVideo = await Video.findById(videoId)
+  if (!existingVideo) {
+    throw new ApiError(404, 'Video does not exist!')
+  }
+
+  if (!existingPlaylist.owner.equals(req.user._id)) {
+    throw new ApiError(403, 'You are not authorized to remove video from this playlist!')
+  }
+
+  const filteredPlaylistVideos = await existingPlaylist.videos.filter((id) => !id.equals(videoId))
+  existingPlaylist.videos = filteredPlaylistVideos
+  await existingPlaylist.save({ validateBeforeSave: false })
+
+  return res.status(200).json(new ApiResponse(200, existingPlaylist, 'Removed video from playlist successfully!'))
+})
+
+export { createPlaylist, getUserPlaylists, getPlaylistById, addVideoToPlaylist, removeVideoFromPlaylist }
