@@ -91,4 +91,27 @@ const getUserTweets = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, tweets, 'User Tweets fetched successfully!'))
 })
 
-export { createTweet, getUserTweets }
+const updateTweet = asyncHandler(async (req, res) => {
+  const { content } = req.body
+  const { tweetId } = req.params
+
+  if (!content?.trim()) {
+    throw new ApiError(400, 'Content field is required!')
+  }
+
+  const existingTweet = await Tweet.findById(tweetId)
+  if (!existingTweet) {
+    throw new ApiError(404, 'Tweet does not exist!')
+  }
+
+  if (!existingTweet.owner.equals(req.user._id)) {
+    throw new ApiError(403, 'You are not authorized to update this post!')
+  }
+
+  existingTweet.content = content
+  await existingTweet.save({ validateBeforeSave: false })
+
+  return res.status(200).json(new ApiResponse(200, existingTweet, 'Tweet updated successfully!'))
+})
+
+export { createTweet, getUserTweets, updateTweet }
