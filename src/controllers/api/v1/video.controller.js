@@ -33,7 +33,7 @@ const incrementViewCountAndUpdateWatchHistory = async (videoId, userId) => {
 /* REQUIRES AUTHENTICATION */
 
 const uploadVideo = asyncHandler(async (req, res) => {
-  const { title, description } = req.body
+  const { title, description, isPublished = true } = req.body
 
   const videoFileLocalPath = req.files?.videoFile ? req.files.videoFile[0].path : null
   if (!videoFileLocalPath) {
@@ -63,6 +63,7 @@ const uploadVideo = asyncHandler(async (req, res) => {
     owner: req.user._id,
     title,
     description,
+    isPublished,
     duration: uploadedVideoFile?.duration,
   })
 
@@ -150,6 +151,11 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
   const agg = Video.aggregate([
     ...aggregatePipelineStages,
+    {
+      $match: {
+        isPublished: true,
+      },
+    },
     {
       $lookup: {
         from: 'users',
@@ -307,6 +313,15 @@ const deleteVideo = asyncHandler(async (req, res) => {
 
 const getVideoById = asyncHandler(async (req, res) => {
   const { videoId } = req.params
+
+  const existingVideo = await Video.findById(videoId)
+  if (!existingVideo) {
+    throw new ApiError(404, `Video does not exist`)
+  }
+
+  if (!existingVideo.isPublished) {
+    throw new ApiError(403, `Video is not published yet!`)
+  }
 
   await incrementViewCountAndUpdateWatchHistory(videoId, req.user._id)
 

@@ -174,6 +174,10 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Video does not exist!')
   }
 
+  if (!existingVideo.isPublished) {
+    throw new ApiError(403, `Video is not published yet!`)
+  }
+
   if (!existingPlaylist.owner.equals(req.user._id)) {
     throw new ApiError(403, 'You are not authorized to add video to this playlist!')
   }

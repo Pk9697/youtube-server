@@ -13,6 +13,9 @@ const getVideoComments = asyncHandler(async (req, res) => {
   if (!existingVideo) {
     throw new ApiError(404, 'Video does not exist!')
   }
+  if (!existingVideo.isPublished) {
+    throw new ApiError(403, `Video is not published yet!`)
+  }
 
   const { page = 1, limit = 10 } = req.query
   const options = {
