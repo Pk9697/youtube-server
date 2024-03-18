@@ -18,6 +18,6 @@ router.use('/comments', commentRouter)
 
 router.use('/likes', likeRouter)
 
-router.use('/playlist', playlistRouter)
+router.use('/playlists', playlistRouter)
 
 export default router
