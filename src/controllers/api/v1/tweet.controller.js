@@ -4,6 +4,7 @@ import { User } from '../../../models/user.model.js'
 import { ApiError } from '../../../utils/ApiError.js'
 import { ApiResponse } from '../../../utils/ApiResponse.js'
 import { asyncHandler } from '../../../utils/asyncHandler.js'
+import { Like } from '../../../models/like.model.js'
 
 const createTweet = asyncHandler(async (req, res) => {
   const { content } = req.body
@@ -114,4 +115,22 @@ const updateTweet = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, existingTweet, 'Tweet updated successfully!'))
 })
 
-export { createTweet, getUserTweets, updateTweet }
+const deleteTweet = asyncHandler(async (req, res) => {
+  const { tweetId } = req.params
+
+  const existingTweet = await Tweet.findById(tweetId)
+  if (!existingTweet) {
+    throw new ApiError(404, 'Tweet does not exist!')
+  }
+
+  if (!existingTweet.owner.equals(req.user._id)) {
+    throw new ApiError(403, 'You are not authorized to delete this post!')
+  }
+
+  await Like.deleteMany({ tweet: tweetId })
+  await Tweet.findByIdAndDelete(tweetId)
+
+  return res.status(200).json(new ApiResponse(200, {}, 'Tweet along with associated likes deleted successfully!'))
+})
+
+export { createTweet, getUserTweets, updateTweet, deleteTweet }
