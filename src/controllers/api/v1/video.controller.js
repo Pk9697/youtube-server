@@ -255,7 +255,6 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
 })
 
 /* REQUIRES AUTHENTICATION AND AUTHORIZATION */
-// TODO: Test pulling out of playlist and watch history
 
 const deleteVideo = asyncHandler(async (req, res) => {
   const { videoId } = req.params

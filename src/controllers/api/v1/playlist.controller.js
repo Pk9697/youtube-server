@@ -160,6 +160,10 @@ const getPlaylistById = asyncHandler(async (req, res) => {
 const addVideoToPlaylist = asyncHandler(async (req, res) => {
   const { playlistId, videoId } = req.query
 
+  if (!playlistId?.trim() || !videoId?.trim()) {
+    throw new ApiError(400, 'playlistId and videoId field is required!')
+  }
+
   const existingPlaylist = await Playlist.findById(playlistId)
   if (!existingPlaylist) {
     throw new ApiError(404, 'Playlist does not exist!')
@@ -185,6 +189,10 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
 const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
   const { playlistId, videoId } = req.query
 
+  if (!playlistId?.trim() || !videoId?.trim()) {
+    throw new ApiError(400, 'playlistId and videoId field is required!')
+  }
+
   const existingPlaylist = await Playlist.findById(playlistId)
   if (!existingPlaylist) {
     throw new ApiError(404, 'Playlist does not exist!')
@@ -206,4 +214,28 @@ const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, existingPlaylist, 'Removed video from playlist successfully!'))
 })
 
-export { createPlaylist, getUserPlaylists, getPlaylistById, addVideoToPlaylist, removeVideoFromPlaylist }
+const deletePlaylist = asyncHandler(async (req, res) => {
+  const { playlistId } = req.params
+
+  const existingPlaylist = await Playlist.findById(playlistId)
+  if (!existingPlaylist) {
+    throw new ApiError(404, 'Playlist does not exist!')
+  }
+
+  if (!existingPlaylist.owner.equals(req.user._id)) {
+    throw new ApiError(403, 'You are not authorized to delete this playlist!')
+  }
+
+  await Playlist.findByIdAndDelete(playlistId)
+
+  return res.status(200).json(new ApiResponse(200, {}, 'Playlist deleted successfully!'))
+})
+
+export {
+  createPlaylist,
+  getUserPlaylists,
+  getPlaylistById,
+  addVideoToPlaylist,
+  removeVideoFromPlaylist,
+  deletePlaylist,
+}

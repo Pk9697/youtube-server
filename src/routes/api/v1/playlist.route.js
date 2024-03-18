@@ -3,6 +3,7 @@ import { verifyJwt } from '../../../middlewares/auth.middleware.js'
 import {
   addVideoToPlaylist,
   createPlaylist,
+  deletePlaylist,
   getPlaylistById,
   getUserPlaylists,
   removeVideoFromPlaylist,
@@ -21,5 +22,7 @@ router.route('/:playlistId').get(getPlaylistById)
 router.route('/add').patch(addVideoToPlaylist)
 
 router.route('/remove').patch(removeVideoFromPlaylist)
+
+router.route('/delete/:playlistId').delete(deletePlaylist)
 
 export default router
