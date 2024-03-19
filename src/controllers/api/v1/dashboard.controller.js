@@ -73,4 +73,56 @@ const getChannelStats = asyncHandler(async (req, res) => {
     )
 })
 
-export { getChannelStats }
+// Get all the videos uploaded by the channel
+
+const getChannelVideos = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10, sortBy = 'createdAt', sortType = -1 } = req.query
+
+  const options = {
+    page,
+    limit,
+    // sort: { [sortBy]: sortType },
+  }
+
+  const agg = Video.aggregate([
+    {
+      $match: {
+        owner: req.user._id,
+      },
+    },
+    {
+      $lookup: {
+        from: 'likes',
+        localField: '_id',
+        foreignField: 'video',
+        as: 'likes',
+      },
+    },
+    {
+      $addFields: {
+        likesCount: {
+          $size: '$likes',
+        },
+      },
+    },
+    {
+      $sort: {
+        [sortBy]: sortType,
+      },
+    },
+    {
+      $project: {
+        isPublished: 1,
+        thumbnail: 1,
+        title: 1,
+        createdAt: 1,
+      },
+    },
+  ])
+
+  const videos = await Video.aggregatePaginate(agg, options)
+
+  return res.status(200).json(new ApiResponse(200, videos, 'Channel videos fetched successfully!'))
+})
+
+export { getChannelStats, getChannelVideos }
