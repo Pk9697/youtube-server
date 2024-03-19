@@ -7,6 +7,7 @@ import likeRouter from './like.route.js'
 import playlistRouter from './playlist.route.js'
 import tweetRouter from './tweet.route.js'
 import dashboardRouter from './dashboard.route.js'
+import healthcheckRouter from './healthcheck.route.js'
 
 const router = Router()
 
@@ -25,5 +26,7 @@ router.use('/playlists', playlistRouter)
 router.use('/tweets', tweetRouter)
 
 router.use('/dashboard', dashboardRouter)
+
+router.use('/healthcheck', healthcheckRouter)
 
 export default router
