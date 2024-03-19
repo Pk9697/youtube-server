@@ -5,6 +5,7 @@ import { ApiError } from '../../../utils/ApiError.js'
 import { ApiResponse } from '../../../utils/ApiResponse.js'
 import { asyncHandler } from '../../../utils/asyncHandler.js'
 import { Like } from '../../../models/like.model.js'
+import { Dislike } from '../../../models/dislike.model.js'
 
 const createTweet = asyncHandler(async (req, res) => {
   const { content } = req.body
@@ -60,6 +61,14 @@ const getUserTweets = asyncHandler(async (req, res) => {
       },
     },
     {
+      $lookup: {
+        from: 'dislikes',
+        localField: '_id',
+        foreignField: 'tweet',
+        as: 'dislikes',
+      },
+    },
+    {
       $addFields: {
         likesCount: {
           $size: '$likes',
@@ -67,6 +76,16 @@ const getUserTweets = asyncHandler(async (req, res) => {
         isLiked: {
           $cond: {
             if: { $in: [req.user?._id, '$likes.owner'] },
+            then: true,
+            else: false,
+          },
+        },
+        dislikesCount: {
+          $size: '$dislikes',
+        },
+        isDisliked: {
+          $cond: {
+            if: { $in: [req.user?._id, '$dislikes.owner'] },
             then: true,
             else: false,
           },
@@ -84,6 +103,8 @@ const getUserTweets = asyncHandler(async (req, res) => {
         content: 1,
         likesCount: 1,
         isLiked: 1,
+        dislikesCount: 1,
+        isDisliked: 1,
         createdAt: 1,
       },
     },
@@ -127,10 +148,13 @@ const deleteTweet = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'You are not authorized to delete this post!')
   }
 
+  await Dislike.deleteMany({ tweet: tweetId })
   await Like.deleteMany({ tweet: tweetId })
   await Tweet.findByIdAndDelete(tweetId)
 
-  return res.status(200).json(new ApiResponse(200, {}, 'Tweet along with associated likes deleted successfully!'))
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, 'Tweet along with associated likes and dislikes deleted successfully!'))
 })
 
 export { createTweet, getUserTweets, updateTweet, deleteTweet }

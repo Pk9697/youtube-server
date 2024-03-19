@@ -6,6 +6,7 @@ import { asyncHandler } from '../../../utils/asyncHandler.js'
 import { ApiResponse } from '../../../utils/ApiResponse.js'
 import { Comment } from '../../../models/comment.model.js'
 import { Like } from '../../../models/like.model.js'
+import { Dislike } from '../../../models/dislike.model.js'
 
 const getVideoComments = asyncHandler(async (req, res) => {
   const { videoId } = req.params
@@ -73,7 +74,6 @@ const getVideoComments = asyncHandler(async (req, res) => {
 })
 
 const addComment = asyncHandler(async (req, res) => {
-  // TODO: add a comment to a video
   const { videoId } = req.params
   const existingVideo = await Video.findById(videoId)
   if (!existingVideo) {
@@ -180,11 +180,14 @@ const deleteComment = asyncHandler(async (req, res) => {
   if (!existingComment.owner.equals(req.user._id)) {
     throw new ApiError(403, `You are not authorized to delete this video`)
   }
-  // TODO: Test Likes deletion
+
   await Like.deleteMany({ comment: commentId })
+  await Dislike.deleteMany({ comment: commentId })
   await Comment.findByIdAndDelete(commentId)
 
-  return res.status(200).json(new ApiResponse(200, {}, 'Comment along with associated likes deleted successfully'))
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, 'Comment along with associated likes and dislikes deleted successfully'))
 })
 
 export { getVideoComments, addComment, updateComment, deleteComment }

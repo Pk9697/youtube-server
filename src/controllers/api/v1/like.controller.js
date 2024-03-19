@@ -1,4 +1,5 @@
 import { Comment } from '../../../models/comment.model.js'
+import { Dislike } from '../../../models/dislike.model.js'
 import { Like } from '../../../models/like.model.js'
 import { Tweet } from '../../../models/tweet.model.js'
 import { Video } from '../../../models/video.model.js'
@@ -26,6 +27,7 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
   if (existingLike) {
     await Like.findByIdAndDelete(existingLike._id)
   } else {
+    await Dislike.deleteOne({ video: videoId, owner: req.user._id })
     await Like.create({
       video: videoId,
       owner: req.user._id,
@@ -51,6 +53,7 @@ const toggleCommentLike = asyncHandler(async (req, res) => {
   if (existingLike) {
     await Like.findByIdAndDelete(existingLike._id)
   } else {
+    await Dislike.deleteOne({ comment: commentId, owner: req.user._id })
     await Like.create({
       comment: commentId,
       owner: req.user._id,
@@ -76,6 +79,7 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
   if (existingLike) {
     await Like.findByIdAndDelete(existingLike._id)
   } else {
+    await Dislike.deleteOne({ tweet: tweetId, owner: req.user._id })
     await Like.create({
       tweet: tweetId,
       owner: req.user._id,

@@ -9,6 +9,7 @@ import { deleteOnCloudinary, uploadOnCloudinary } from '../../../utils/cloudinar
 import { Comment } from '../../../models/comment.model.js'
 import { Like } from '../../../models/like.model.js'
 import { Playlist } from '../../../models/playlist.model.js'
+import { Dislike } from '../../../models/dislike.model.js'
 
 const incrementViewCountAndUpdateWatchHistory = async (videoId, userId) => {
   const video = await Video.findByIdAndUpdate(
@@ -283,8 +284,12 @@ const deleteVideo = asyncHandler(async (req, res) => {
   await Like.deleteMany({
     comment: { $in: videoComments },
   })
+  await Dislike.deleteMany({
+    comment: { $in: videoComments },
+  })
   await Comment.deleteMany({ video: videoId })
   await Like.deleteMany({ video: videoId })
+  await Dislike.deleteMany({ video: videoId })
 
   // pull out from videos array wherever this video exists in playlist
 
@@ -386,6 +391,14 @@ const getVideoById = asyncHandler(async (req, res) => {
       },
     },
     {
+      $lookup: {
+        from: 'dislikes',
+        localField: '_id',
+        foreignField: 'video',
+        as: 'dislikes',
+      },
+    },
+    {
       $addFields: {
         likesCount: {
           $size: '$likes',
@@ -393,6 +406,16 @@ const getVideoById = asyncHandler(async (req, res) => {
         isLiked: {
           $cond: {
             if: { $in: [req.user?._id, '$likes.owner'] },
+            then: true,
+            else: false,
+          },
+        },
+        dislikesCount: {
+          $size: '$dislikes',
+        },
+        isDisliked: {
+          $cond: {
+            if: { $in: [req.user?._id, '$dislikes.owner'] },
             then: true,
             else: false,
           },
@@ -440,6 +463,14 @@ const getVideoById = asyncHandler(async (req, res) => {
             },
           },
           {
+            $lookup: {
+              from: 'dislikes',
+              localField: '_id',
+              foreignField: 'comment',
+              as: 'dislikes',
+            },
+          },
+          {
             $addFields: {
               likesCount: {
                 $size: '$likes',
@@ -447,6 +478,16 @@ const getVideoById = asyncHandler(async (req, res) => {
               isLiked: {
                 $cond: {
                   if: { $in: [req.user?._id, '$likes.owner'] },
+                  then: true,
+                  else: false,
+                },
+              },
+              dislikesCount: {
+                $size: '$dislikes',
+              },
+              isDisliked: {
+                $cond: {
+                  if: { $in: [req.user?._id, '$dislikes.owner'] },
                   then: true,
                   else: false,
                 },
@@ -478,6 +519,8 @@ const getVideoById = asyncHandler(async (req, res) => {
         isLiked: 1,
         comments: 1,
         commentsCount: 1,
+        dislikesCount: 1,
+        isDisliked: 1,
       },
     },
   ])

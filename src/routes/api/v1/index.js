@@ -8,6 +8,7 @@ import playlistRouter from './playlist.route.js'
 import tweetRouter from './tweet.route.js'
 import dashboardRouter from './dashboard.route.js'
 import healthcheckRouter from './healthcheck.route.js'
+import dislikeRouter from './dislike.route.js'
 
 const router = Router()
 
@@ -28,5 +29,7 @@ router.use('/tweets', tweetRouter)
 router.use('/dashboard', dashboardRouter)
 
 router.use('/healthcheck', healthcheckRouter)
+
+router.use('/dislikes', dislikeRouter)
 
 export default router
