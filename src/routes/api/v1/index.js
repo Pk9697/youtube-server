@@ -6,6 +6,7 @@ import commentRouter from './comment.route.js'
 import likeRouter from './like.route.js'
 import playlistRouter from './playlist.route.js'
 import tweetRouter from './tweet.route.js'
+import dashboardRouter from './dashboard.route.js'
 
 const router = Router()
 
@@ -22,5 +23,7 @@ router.use('/likes', likeRouter)
 router.use('/playlists', playlistRouter)
 
 router.use('/tweets', tweetRouter)
+
+router.use('/dashboard', dashboardRouter)
 
 export default router
