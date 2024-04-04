@@ -1,3 +1,4 @@
+import mongoose from 'mongoose'
 import { Comment } from '../../../models/comment.model.js'
 import { Dislike } from '../../../models/dislike.model.js'
 import { Like } from '../../../models/like.model.js'
@@ -34,7 +35,63 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
     })
   }
 
-  return res.status(200).json(new ApiResponse(200, {}, 'Video like toggled successfully!'))
+  const videoWithLikesAndDislikesCount = await Video.aggregate([
+    {
+      $match: { _id: new mongoose.Types.ObjectId(videoId) },
+    },
+    {
+      $lookup: {
+        from: 'likes',
+        localField: '_id',
+        foreignField: 'video',
+        as: 'likes',
+      },
+    },
+    {
+      $lookup: {
+        from: 'dislikes',
+        localField: '_id',
+        foreignField: 'video',
+        as: 'dislikes',
+      },
+    },
+    {
+      $addFields: {
+        likesCount: {
+          $size: '$likes',
+        },
+        isLiked: {
+          $cond: {
+            if: { $in: [req.user?._id, '$likes.owner'] },
+            then: true,
+            else: false,
+          },
+        },
+        dislikesCount: {
+          $size: '$dislikes',
+        },
+        isDisliked: {
+          $cond: {
+            if: { $in: [req.user?._id, '$dislikes.owner'] },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        likesCount: 1,
+        isLiked: 1,
+        dislikesCount: 1,
+        isDisliked: 1,
+      },
+    },
+  ])
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, videoWithLikesAndDislikesCount[0], 'Video like toggled successfully!'))
 })
 
 const toggleCommentLike = asyncHandler(async (req, res) => {
