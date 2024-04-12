@@ -19,13 +19,55 @@ const createTweet = asyncHandler(async (req, res) => {
     owner: req.user._id,
   })
 
-  return res.status(200).json(new ApiResponse(200, tweet, 'Tweet created successfully!'))
+  const tweetWithPopulatedOwner = await Tweet.aggregate([
+    {
+      $match: {
+        _id: tweet._id,
+      },
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'owner',
+        foreignField: '_id',
+        as: 'owner',
+        pipeline: [
+          {
+            $project: {
+              fullName: 1,
+              userName: 1,
+              avatar: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        owner: {
+          $first: '$owner',
+        },
+      },
+    },
+    {
+      $project: {
+        content: 1,
+        owner: 1,
+        createdAt: 1,
+      },
+    },
+  ])
+
+  return res.status(200).json(new ApiResponse(200, tweetWithPopulatedOwner[0], 'Tweet created successfully!'))
 })
 
 const getUserTweets = asyncHandler(async (req, res) => {
-  const { userId } = req.params
+  const { userId, userName } = req.query
 
-  const existingUser = await User.findById(userId)
+  const existingUser = await User.findOne({
+    $or: [{ _id: userId }, { userName }],
+  })
+
   if (!existingUser) {
     throw new ApiError(404, 'User does not exist')
   }
@@ -33,7 +75,7 @@ const getUserTweets = asyncHandler(async (req, res) => {
   const tweets = await Tweet.aggregate([
     {
       $match: {
-        owner: new mongoose.Types.ObjectId(userId),
+        owner: new mongoose.Types.ObjectId(existingUser._id),
       },
     },
     {
@@ -47,9 +89,17 @@ const getUserTweets = asyncHandler(async (req, res) => {
             $project: {
               fullName: 1,
               avatar: 1,
+              userName: 1,
             },
           },
         ],
+      },
+    },
+    {
+      $addFields: {
+        owner: {
+          $first: '$owner',
+        },
       },
     },
     {

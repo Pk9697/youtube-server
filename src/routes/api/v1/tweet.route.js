@@ -8,7 +8,7 @@ router.use(verifyJwt)
 
 router.route('/create').post(createTweet)
 
-router.route('/users/:userId').get(getUserTweets)
+router.route('/users').get(getUserTweets)
 
 router.route('/update/:tweetId').patch(updateTweet)
 

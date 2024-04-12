@@ -221,7 +221,9 @@ const deleteComment = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Comment does not exist!')
   }
 
-  if (!existingComment.owner.equals(req.user._id)) {
+  const existingVideo = await Video.findById(existingComment.video)
+
+  if (!existingVideo.owner.equals(req.user._id) && !existingComment.owner.equals(req.user._id)) {
     throw new ApiError(403, `You are not authorized to delete this video`)
   }
 

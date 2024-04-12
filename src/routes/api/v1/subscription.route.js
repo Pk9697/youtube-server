@@ -14,7 +14,7 @@ router.use(verifyJwt)
 
 router.route('/toggle/:channelId').post(toggleSubscription)
 
-router.route('/channels/:subscriberId').get(getUserSubscribedToChannels)
+router.route('/channels').get(getUserSubscribedToChannels)
 
 router.route('/subscribers/:channelId').get(getUserChannelSubscribers)
 

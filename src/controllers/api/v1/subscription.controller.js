@@ -25,8 +25,10 @@ const toggleSubscription = asyncHandler(async (req, res) => {
     ],
   })
 
+  let newSubscription = null
+
   if (!subscription) {
-    await Subscription.create({
+    newSubscription = await Subscription.create({
       subscriber: req.user._id,
       channel: channelId,
     })
@@ -34,23 +36,10 @@ const toggleSubscription = asyncHandler(async (req, res) => {
     await Subscription.findByIdAndDelete(subscription._id)
   }
 
-  return res.status(200).json(new ApiResponse(200, {}, 'Subscription toggled successfully!'))
-})
-
-// controller to return channel list to which user has subscribed
-
-const getUserSubscribedToChannels = asyncHandler(async (req, res) => {
-  const { subscriberId } = req.params
-
-  const existingSubscriber = await User.findById(subscriberId)
-  if (!existingSubscriber) {
-    throw new ApiError(404, 'Subscriber does not exist!')
-  }
-
-  const channels = await Subscription.aggregate([
+  const channel = await Subscription.aggregate([
     {
       $match: {
-        subscriber: new mongoose.Types.ObjectId(subscriberId),
+        _id: new mongoose.Types.ObjectId(newSubscription?._id),
       },
     },
     {
@@ -84,6 +73,83 @@ const getUserSubscribedToChannels = asyncHandler(async (req, res) => {
           },
           {
             $project: {
+              userName: 1,
+              fullName: 1,
+              avatar: 1,
+              subscribersCount: 1,
+              isSubscribed: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        channel: {
+          $first: '$channel',
+        },
+      },
+    },
+    {
+      $project: {
+        channel: 1,
+      },
+    },
+  ])
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, !channel.length ? {} : channel[0], 'Subscription toggled successfully!'))
+})
+
+// controller to return channel list to which user has subscribed
+
+const getUserSubscribedToChannels = asyncHandler(async (req, res) => {
+  const { subscriberId, subscriberUserName } = req.query
+
+  const existingSubscriber = await User.findOne({ $or: [{ _id: subscriberId }, { userName: subscriberUserName }] })
+  if (!existingSubscriber) {
+    throw new ApiError(404, 'Subscriber does not exist!')
+  }
+
+  const channels = await Subscription.aggregate([
+    {
+      $match: {
+        subscriber: new mongoose.Types.ObjectId(existingSubscriber._id),
+      },
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'channel',
+        foreignField: '_id',
+        as: 'channel',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'subscriptions',
+              localField: '_id',
+              foreignField: 'channel',
+              as: 'subscribers',
+            },
+          },
+          {
+            $addFields: {
+              subscribersCount: {
+                $size: '$subscribers',
+              },
+              isSubscribed: {
+                $cond: {
+                  if: { $in: [req.user?._id, '$subscribers.subscriber'] },
+                  then: true,
+                  else: false,
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              userName: 1,
               fullName: 1,
               avatar: 1,
               subscribersCount: 1,

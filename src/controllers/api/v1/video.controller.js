@@ -114,7 +114,7 @@ const uploadVideo = asyncHandler(async (req, res) => {
 /* REQUIRES AUTHENTICATION */
 
 const getAllVideos = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, query = '', sortBy = 'createdAt', sortType = -1, userId } = req.query
+  const { page = 1, limit = 10, query = '', sortBy = 'createdAt', sortType = -1, userId, userName } = req.query
 
   const options = {
     page,
@@ -124,15 +124,18 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
   const aggregatePipelineStages = []
 
-  if (userId) {
-    const user = await User.findById(userId)
-    if (!user) {
-      throw new ApiError(400, "User doesn't exist")
+  if (userId || userName) {
+    const existingUser = await User.findOne({
+      $or: [{ _id: userId }, { userName }],
+    })
+
+    if (!existingUser) {
+      throw new ApiError(404, 'User does not exist')
     }
 
     aggregatePipelineStages.push({
       $match: {
-        owner: user._id,
+        owner: existingUser._id,
       },
     })
   }

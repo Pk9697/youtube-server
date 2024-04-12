@@ -117,7 +117,63 @@ const toggleCommentDislike = asyncHandler(async (req, res) => {
     })
   }
 
-  return res.status(200).json(new ApiResponse(200, {}, 'Comment dislike toggled successfully!'))
+  const commentWithLikesAndDislikesCount = await Comment.aggregate([
+    {
+      $match: { _id: new mongoose.Types.ObjectId(commentId) },
+    },
+    {
+      $lookup: {
+        from: 'likes',
+        localField: '_id',
+        foreignField: 'comment',
+        as: 'likes',
+      },
+    },
+    {
+      $lookup: {
+        from: 'dislikes',
+        localField: '_id',
+        foreignField: 'comment',
+        as: 'dislikes',
+      },
+    },
+    {
+      $addFields: {
+        likesCount: {
+          $size: '$likes',
+        },
+        isLiked: {
+          $cond: {
+            if: { $in: [req.user?._id, '$likes.owner'] },
+            then: true,
+            else: false,
+          },
+        },
+        dislikesCount: {
+          $size: '$dislikes',
+        },
+        isDisliked: {
+          $cond: {
+            if: { $in: [req.user?._id, '$dislikes.owner'] },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        likesCount: 1,
+        isLiked: 1,
+        dislikesCount: 1,
+        isDisliked: 1,
+      },
+    },
+  ])
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, commentWithLikesAndDislikesCount[0], 'Comment dislike toggled successfully!'))
 })
 
 const toggleTweetDislike = asyncHandler(async (req, res) => {
@@ -143,7 +199,63 @@ const toggleTweetDislike = asyncHandler(async (req, res) => {
     })
   }
 
-  return res.status(200).json(new ApiResponse(200, {}, 'Tweet dislike toggled successfully!'))
+  const tweetWithLikesAndDislikesCount = await Tweet.aggregate([
+    {
+      $match: { _id: new mongoose.Types.ObjectId(tweetId) },
+    },
+    {
+      $lookup: {
+        from: 'likes',
+        localField: '_id',
+        foreignField: 'tweet',
+        as: 'likes',
+      },
+    },
+    {
+      $lookup: {
+        from: 'dislikes',
+        localField: '_id',
+        foreignField: 'tweet',
+        as: 'dislikes',
+      },
+    },
+    {
+      $addFields: {
+        likesCount: {
+          $size: '$likes',
+        },
+        isLiked: {
+          $cond: {
+            if: { $in: [req.user?._id, '$likes.owner'] },
+            then: true,
+            else: false,
+          },
+        },
+        dislikesCount: {
+          $size: '$dislikes',
+        },
+        isDisliked: {
+          $cond: {
+            if: { $in: [req.user?._id, '$dislikes.owner'] },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        likesCount: 1,
+        isLiked: 1,
+        dislikesCount: 1,
+        isDisliked: 1,
+      },
+    },
+  ])
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, tweetWithLikesAndDislikesCount[0], 'Tweet dislike toggled successfully!'))
 })
 
 export { toggleVideoDislike, toggleCommentDislike, toggleTweetDislike }

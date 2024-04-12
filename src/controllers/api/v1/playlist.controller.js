@@ -23,9 +23,11 @@ const createPlaylist = asyncHandler(async (req, res) => {
 })
 
 const getUserPlaylists = asyncHandler(async (req, res) => {
-  const { userId } = req.params
+  const { userId, userName } = req.query
 
-  const existingUser = await User.findById(userId)
+  const existingUser = await User.findOne({
+    $or: [{ _id: userId }, { userName }],
+  })
   if (!existingUser) {
     throw new ApiError(404, 'User does not exist!')
   }
@@ -33,7 +35,46 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
   const playlists = await Playlist.aggregate([
     {
       $match: {
-        owner: new mongoose.Types.ObjectId(userId),
+        owner: new mongoose.Types.ObjectId(existingUser._id),
+      },
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'owner',
+        foreignField: '_id',
+        as: 'owner',
+        pipeline: [
+          {
+            $project: {
+              avatar: 1,
+              userName: 1,
+              fullName: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        owner: {
+          $first: '$owner',
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: 'videos',
+        localField: 'videos',
+        foreignField: '_id',
+        as: 'videos',
+        pipeline: [
+          {
+            $project: {
+              thumbnail: 1,
+            },
+          },
+        ],
       },
     },
     {
@@ -42,6 +83,7 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
         description: 1,
         createdAt: 1,
         videos: 1,
+        owner: 1,
       },
     },
   ])
@@ -80,6 +122,7 @@ const getPlaylistById = asyncHandler(async (req, res) => {
                 {
                   $project: {
                     fullName: 1,
+                    userName: 1,
                   },
                 },
               ],
@@ -98,6 +141,7 @@ const getPlaylistById = asyncHandler(async (req, res) => {
               owner: 1,
               title: 1,
               views: 1,
+              duration: 1,
               createdAt: 1,
             },
           },
@@ -131,6 +175,7 @@ const getPlaylistById = asyncHandler(async (req, res) => {
               fullName: 1,
               avatar: 1,
               subscribersCount: 1,
+              userName: 1,
             },
           },
         ],
@@ -154,7 +199,7 @@ const getPlaylistById = asyncHandler(async (req, res) => {
     },
   ])
 
-  return res.status(200).json(new ApiResponse(200, playlist, 'Playlist fetched successfully!'))
+  return res.status(200).json(new ApiResponse(200, playlist[0], 'Playlist fetched successfully!'))
 })
 
 const addVideoToPlaylist = asyncHandler(async (req, res) => {

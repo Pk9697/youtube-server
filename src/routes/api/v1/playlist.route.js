@@ -16,7 +16,7 @@ router.use(verifyJwt)
 
 router.route('/create').post(createPlaylist)
 
-router.route('/user/:userId').get(getUserPlaylists)
+router.route('/user').get(getUserPlaylists)
 
 router.route('/:playlistId').get(getPlaylistById)
 
