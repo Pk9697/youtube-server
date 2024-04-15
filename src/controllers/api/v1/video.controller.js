@@ -1,5 +1,6 @@
 /* eslint-disable no-underscore-dangle */
 import mongoose from 'mongoose'
+import { getVideoDurationInSeconds } from 'get-video-duration'
 import { User } from '../../../models/user.model.js'
 import { Video } from '../../../models/video.model.js'
 import { ApiError } from '../../../utils/ApiError.js'
@@ -32,6 +33,7 @@ const incrementViewCountAndUpdateWatchHistory = async (videoId, userId) => {
 }
 
 /* REQUIRES AUTHENTICATION */
+// TODO: UNDO BELOW CHANGES ON PRODUCTION
 
 const uploadVideo = asyncHandler(async (req, res) => {
   const { title, description, isPublished = true } = req.body
@@ -47,25 +49,40 @@ const uploadVideo = asyncHandler(async (req, res) => {
   }
 
   // upload on cloudinary
+  // TODO USE CLOUDINARY API ON PRODUCTION -> UNCOMMENT LINES 53-71 AND COMMENT LINES 75-85
 
-  const uploadedVideoFile = await uploadOnCloudinary(videoFileLocalPath)
-  if (!uploadedVideoFile) {
-    throw new ApiError(400, 'Video upload on cloudinary failed')
-  }
+  // const uploadedVideoFile = await uploadOnCloudinary(videoFileLocalPath)
+  // if (!uploadedVideoFile) {
+  //   throw new ApiError(400, 'Video upload on cloudinary failed')
+  // }
 
-  const uploadedThumbnail = await uploadOnCloudinary(thumbnailLocalPath)
-  if (!uploadedThumbnail) {
-    throw new ApiError(400, 'THumbnail upload on cloudinary failed')
-  }
+  // const uploadedThumbnail = await uploadOnCloudinary(thumbnailLocalPath)
+  // if (!uploadedThumbnail) {
+  //   throw new ApiError(400, 'THumbnail upload on cloudinary failed')
+  // }
+
+  // const video = await Video.create({
+  //   videoFile: uploadedVideoFile?.url,
+  //   thumbnail: uploadedThumbnail?.url,
+  //   owner: req.user._id,
+  //   title,
+  //   description,
+  //   isPublished,
+  //   duration: uploadedVideoFile?.duration,
+  // })
+
+  //* WITHOUT CLOUDINARY API
+
+  const duration = await getVideoDurationInSeconds(videoFileLocalPath)
 
   const video = await Video.create({
-    videoFile: uploadedVideoFile?.url,
-    thumbnail: uploadedThumbnail?.url,
+    videoFile: videoFileLocalPath || '',
+    thumbnail: thumbnailLocalPath || '',
     owner: req.user._id,
     title,
     description,
     isPublished,
-    duration: uploadedVideoFile?.duration,
+    duration,
   })
 
   if (!video) {

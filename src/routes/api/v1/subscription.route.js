@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import {
+  getLoggedInUserSubscribedToChannelsVideos,
   getUserChannelSubscribers,
   getUserSubscribedToChannels,
   toggleSubscription,
@@ -15,6 +16,7 @@ router.use(verifyJwt)
 router.route('/toggle/:channelId').post(toggleSubscription)
 
 router.route('/channels').get(getUserSubscribedToChannels)
+router.route('/channels/videos').get(getLoggedInUserSubscribedToChannelsVideos)
 
 router.route('/subscribers/:channelId').get(getUserChannelSubscribers)
 

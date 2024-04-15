@@ -30,6 +30,8 @@ const generateAccessAndRefreshTokens = async (userId) => {
   }
 }
 
+// TODO: UNDO BELOW CHANGES ON PRODUCTION
+
 const registerUser = asyncHandler(async (req, res) => {
   // steps
   // get user details from client
@@ -75,7 +77,9 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   // upload on cloudinary
+  // TODO USE CLOUDINARY API ON PRODUCTION -> UNCOMMENT LINES 80-98 AND COMMENT LINES 102-109
 
+  /*
   const uploadedAvatar = await uploadOnCloudinary(avatarLocalPath)
   const uploadedCoverImage = coverImageLocalPath ? await uploadOnCloudinary(coverImageLocalPath) : null
 
@@ -83,12 +87,24 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Avatar upload on cloudinary failed')
   }
 
-  // create User object
+  create User object
 
   const user = await User.create({
     fullName,
     avatar: uploadedAvatar?.url,
     coverImage: uploadedCoverImage?.url || '',
+    email,
+    userName: userName.toLowerCase(),
+    password,
+  })
+  */
+
+  //* WITHOUT CLOUDINARY API
+
+  const user = await User.create({
+    fullName,
+    avatar: avatarLocalPath,
+    coverImage: coverImageLocalPath || '',
     email,
     userName: userName.toLowerCase(),
     password,
@@ -484,6 +500,9 @@ const getWatchHistory = asyncHandler(async (req, res) => {
       },
     },
     {
+      $unwind: '$watchHistory',
+    },
+    {
       $lookup: {
         from: 'videos',
         localField: 'watchHistory',
@@ -518,13 +537,28 @@ const getWatchHistory = asyncHandler(async (req, res) => {
         ],
       },
     },
+    {
+      $addFields: {
+        watchHistory: {
+          $first: '$watchHistory',
+        },
+      },
+    },
+    {
+      $group: {
+        _id: '$_id',
+        watchHistory: {
+          $push: '$watchHistory',
+        },
+      },
+    },
   ])
 
   // aggregation pipeline sends response as an array of objects ,
   // here only 1 document would be matched for curr user
   // and we want to send only watchHistory which will be an array of objects
 
-  return res.status(200).json(new ApiResponse(200, user[0].watchHistory, 'User watch history fetched successfully'))
+  return res.status(200).json(new ApiResponse(200, user[0]?.watchHistory, 'User watch history fetched successfully'))
 })
 
 export {

@@ -38,7 +38,7 @@ app.use(express.urlencoded({ extended: true, limit: '16kb' }))
 // make the uploads path of public folder available to the client
 // visit for more details https://expressjs.com/en/starter/static-files.html
 
-app.use(express.static('public'))
+app.use('/public', express.static('public'))
 
 // to apply CRUD operations on client's cookies for authorizing client so that they don't need to keep logging in for every
 // request where authorization is needed

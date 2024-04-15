@@ -97,9 +97,9 @@ const toggleSubscription = asyncHandler(async (req, res) => {
     },
   ])
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, !channel.length ? {} : channel[0], 'Subscription toggled successfully!'))
+  const channelInfo = !channel.length ? {} : channel[0]?.channel
+
+  return res.status(200).json(new ApiResponse(200, channelInfo, 'Subscription toggled successfully!'))
 })
 
 // controller to return channel list to which user has subscribed
@@ -167,13 +167,20 @@ const getUserSubscribedToChannels = asyncHandler(async (req, res) => {
       },
     },
     {
+      $sort: {
+        createdAt: -1,
+      },
+    },
+    {
       $project: {
         channel: 1,
       },
     },
   ])
 
-  return res.status(200).json(new ApiResponse(200, channels, 'User Subscribed to Channels fetched successfully'))
+  const channelsList = channels.map((channel) => channel.channel)
+
+  return res.status(200).json(new ApiResponse(200, channelsList, 'User Subscribed to Channels fetched successfully'))
 })
 
 // controller to return subscribers list of a channel
@@ -223,6 +230,7 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
           },
           {
             $project: {
+              userName: 1,
               fullName: 1,
               avatar: 1,
               subscribersCount: 1,
@@ -240,13 +248,87 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
       },
     },
     {
+      $sort: {
+        createdAt: -1,
+      },
+    },
+    {
       $project: {
         subscriber: 1,
       },
     },
   ])
 
-  return res.status(200).json(new ApiResponse(200, subscribers, 'User Channel subscribers fetched successfully'))
+  const subscribersList = subscribers.map((subscriber) => subscriber.subscriber)
+
+  return res.status(200).json(new ApiResponse(200, subscribersList, 'User Channel subscribers fetched successfully'))
 })
 
-export { toggleSubscription, getUserSubscribedToChannels, getUserChannelSubscribers }
+const getLoggedInUserSubscribedToChannelsVideos = asyncHandler(async (req, res) => {
+  const channelVideos = await Subscription.aggregate([
+    {
+      $match: {
+        subscriber: new mongoose.Types.ObjectId(req.user._id),
+      },
+    },
+    {
+      $lookup: {
+        from: 'videos',
+        localField: 'channel',
+        foreignField: 'owner',
+        as: 'videos',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'owner',
+              foreignField: '_id',
+              as: 'owner',
+              pipeline: [
+                {
+                  $project: {
+                    userName: 1,
+                    email: 1,
+                    fullName: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $arrayElemAt: ['$owner', 0],
+              },
+            },
+          },
+          {
+            $sort: {
+              createdAt: -1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        videos: 1,
+      },
+    },
+  ])
+
+  const videos = channelVideos
+    .reduce((acc, curr) => [...acc, ...curr.videos], [])
+    .sort((a, b) => b.createdAt - a.createdAt)
+
+  return res.status(200).json(new ApiResponse(200, videos, 'User Subscribed to Channel Videos fetched successfully'))
+})
+
+export {
+  toggleSubscription,
+  getUserSubscribedToChannels,
+  getUserChannelSubscribers,
+  getLoggedInUserSubscribedToChannelsVideos,
+}

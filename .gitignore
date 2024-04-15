@@ -1,5 +1,7 @@
 # Generated from https://mrkandreev.name/snippets/gitignore-generator/
 
+public/temp
+
 # Logs
 logs
 *.log
