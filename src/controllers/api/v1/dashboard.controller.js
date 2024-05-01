@@ -99,9 +99,20 @@ const getChannelVideos = asyncHandler(async (req, res) => {
       },
     },
     {
+      $lookup: {
+        from: 'dislikes',
+        localField: '_id',
+        foreignField: 'video',
+        as: 'dislikes',
+      },
+    },
+    {
       $addFields: {
         likesCount: {
           $size: '$likes',
+        },
+        dislikesCount: {
+          $size: '$dislikes',
         },
       },
     },
@@ -112,6 +123,10 @@ const getChannelVideos = asyncHandler(async (req, res) => {
     },
     {
       $project: {
+        views: 1,
+        likesCount: 1,
+        dislikesCount: 1,
+        description: 1,
         isPublished: 1,
         thumbnail: 1,
         title: 1,

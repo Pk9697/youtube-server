@@ -7,7 +7,7 @@ import { asyncHandler } from '../../../utils/asyncHandler.js'
 import { Video } from '../../../models/video.model.js'
 
 const createPlaylist = asyncHandler(async (req, res) => {
-  const { name, description } = req.body
+  const { name, description, visibility } = req.body
 
   if (!name?.trim() || !description?.trim()) {
     throw new ApiError(400, 'Name and desctiption field is required!')
@@ -17,6 +17,7 @@ const createPlaylist = asyncHandler(async (req, res) => {
     name: name.trim(),
     description: description.trim(),
     owner: req.user._id,
+    visibility,
   })
 
   return res.status(201).json(new ApiResponse(201, playlist, 'Playlist created successfully!'))
@@ -78,17 +79,32 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
       },
     },
     {
+      $sort: {
+        updatedAt: -1,
+      },
+    },
+    {
       $project: {
         name: 1,
         description: 1,
         createdAt: 1,
+        updatedAt: 1,
         videos: 1,
         owner: 1,
+        visibility: 1,
       },
     },
   ])
 
-  return res.status(200).json(new ApiResponse(200, playlists, 'User Playlists fetched successfully'))
+  // remove Liked Videos Playlist
+
+  let filteredPlaylists = playlists.filter((playlist) => playlist.name !== 'LL')
+
+  if (!existingUser._id.equals(req.user._id)) {
+    filteredPlaylists = playlists.filter((playlist) => playlist.visibility === 'public')
+  }
+
+  return res.status(200).json(new ApiResponse(200, filteredPlaylists, 'User Playlists fetched successfully'))
 })
 
 const getPlaylistById = asyncHandler(async (req, res) => {
@@ -106,12 +122,20 @@ const getPlaylistById = asyncHandler(async (req, res) => {
       },
     },
     {
+      $unwind: '$videos',
+    },
+    {
       $lookup: {
         from: 'videos',
         localField: 'videos',
         foreignField: '_id',
         as: 'videos',
         pipeline: [
+          {
+            $match: {
+              isPublished: true,
+            },
+          },
           {
             $lookup: {
               from: 'users',
@@ -123,6 +147,7 @@ const getPlaylistById = asyncHandler(async (req, res) => {
                   $project: {
                     fullName: 1,
                     userName: 1,
+                    avatar: 1,
                   },
                 },
               ],
@@ -142,6 +167,7 @@ const getPlaylistById = asyncHandler(async (req, res) => {
               title: 1,
               views: 1,
               duration: 1,
+              description: 1,
               createdAt: 1,
             },
           },
@@ -186,6 +212,32 @@ const getPlaylistById = asyncHandler(async (req, res) => {
         owner: {
           $arrayElemAt: ['$owner', 0],
         },
+        videos: {
+          $arrayElemAt: ['$videos', 0],
+        },
+      },
+    },
+    {
+      $group: {
+        _id: '$_id',
+        name: {
+          $first: '$name',
+        },
+        description: {
+          $first: '$description',
+        },
+        videos: {
+          $push: '$videos',
+        },
+        owner: {
+          $first: '$owner',
+        },
+        createdAt: {
+          $first: '$createdAt',
+        },
+        updatedAt: {
+          $first: '$updatedAt',
+        },
       },
     },
     {
@@ -195,6 +247,7 @@ const getPlaylistById = asyncHandler(async (req, res) => {
         videos: 1,
         owner: 1,
         createdAt: 1,
+        updatedAt: 1,
       },
     },
   ])
@@ -214,7 +267,10 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Playlist does not exist!')
   }
 
-  const existingVideo = await Video.findById(videoId)
+  const existingVideo = await Video.findById(videoId).populate({
+    path: 'owner',
+    select: { avatar: 1, fullName: 1, userName: 1 },
+  })
   if (!existingVideo) {
     throw new ApiError(404, 'Video does not exist!')
   }
@@ -230,9 +286,17 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
   const filteredPlaylistVideos = await existingPlaylist.videos.filter((id) => !id.equals(videoId))
 
   existingPlaylist.videos = [videoId, ...filteredPlaylistVideos]
-  await existingPlaylist.save({ validateBeforeSave: false })
+  await existingPlaylist.save({ validateBeforeSave: false, new: true })
 
-  return res.status(200).json(new ApiResponse(200, existingPlaylist, 'Added video to playlist successfully!'))
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { playlist: existingPlaylist, video: existingVideo },
+        'Added video to playlist successfully!'
+      )
+    )
 })
 
 const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
@@ -258,7 +322,7 @@ const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
 
   const filteredPlaylistVideos = await existingPlaylist.videos.filter((id) => !id.equals(videoId))
   existingPlaylist.videos = filteredPlaylistVideos
-  await existingPlaylist.save({ validateBeforeSave: false })
+  await existingPlaylist.save({ validateBeforeSave: false, new: true })
 
   return res.status(200).json(new ApiResponse(200, existingPlaylist, 'Removed video from playlist successfully!'))
 })
@@ -282,7 +346,7 @@ const deletePlaylist = asyncHandler(async (req, res) => {
 
 const updatePlaylist = asyncHandler(async (req, res) => {
   const { playlistId } = req.params
-  const { name, description } = req.body
+  const { name, description, visibility } = req.body
 
   if (!name?.trim() && !description?.trim()) {
     throw new ApiError(400, 'name or description field is required!')
@@ -291,6 +355,10 @@ const updatePlaylist = asyncHandler(async (req, res) => {
   const existingPlaylist = await Playlist.findById(playlistId)
   if (!existingPlaylist) {
     throw new ApiError(404, 'Playlist does not exist!')
+  }
+
+  if (existingPlaylist.name === 'WL') {
+    throw new ApiError(403, 'Watch Later playlist cannot be updated!')
   }
 
   if (!existingPlaylist.owner.equals(req.user._id)) {
@@ -305,9 +373,25 @@ const updatePlaylist = asyncHandler(async (req, res) => {
     existingPlaylist.description = description.trim()
   }
 
-  await existingPlaylist.save({ validateBeforeSave: false })
+  if (visibility?.trim()) {
+    existingPlaylist.visibility = visibility.trim()
+  }
+
+  await existingPlaylist.save({ validateBeforeSave: false, new: true })
 
   return res.status(200).json(new ApiResponse(200, existingPlaylist, 'Playlist Updated successfully!'))
+})
+
+const getLoggedInUserPlaylistIdByName = asyncHandler(async (req, res) => {
+  const { playlistName: name } = req.params
+  if (!name?.trim()) {
+    throw new ApiError(400, 'PlaylistName field is required!')
+  }
+  const playlist = await Playlist.findOne({ name, owner: req.user._id })
+  if (!playlist) {
+    throw new ApiError(404, 'Playlist does not exist!')
+  }
+  return res.status(200).json(new ApiResponse(200, playlist._id, 'Playlist fetched successfully!'))
 })
 
 export {
@@ -318,4 +402,5 @@ export {
   removeVideoFromPlaylist,
   deletePlaylist,
   updatePlaylist,
+  getLoggedInUserPlaylistIdByName,
 }

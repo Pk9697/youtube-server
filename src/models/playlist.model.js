@@ -23,6 +23,11 @@ const playlistSchema = new Schema(
       ref: 'User',
       required: true,
     },
+    visibility: {
+      type: String,
+      enum: ['public', 'private'],
+      default: 'public',
+    },
   },
   { timestamps: true }
 )

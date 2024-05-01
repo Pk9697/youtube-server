@@ -1,12 +1,13 @@
 /* eslint-disable no-underscore-dangle */
 import mongoose from 'mongoose'
+import fs from 'fs'
 import { getVideoDurationInSeconds } from 'get-video-duration'
 import { User } from '../../../models/user.model.js'
 import { Video } from '../../../models/video.model.js'
 import { ApiError } from '../../../utils/ApiError.js'
 import { ApiResponse } from '../../../utils/ApiResponse.js'
 import { asyncHandler } from '../../../utils/asyncHandler.js'
-import { deleteOnCloudinary, uploadOnCloudinary } from '../../../utils/cloudinary.js'
+// import { deleteOnCloudinary, uploadOnCloudinary } from '../../../utils/cloudinary.js'
 import { Comment } from '../../../models/comment.model.js'
 import { Like } from '../../../models/like.model.js'
 import { Playlist } from '../../../models/playlist.model.js'
@@ -37,6 +38,9 @@ const incrementViewCountAndUpdateWatchHistory = async (videoId, userId) => {
 
 const uploadVideo = asyncHandler(async (req, res) => {
   const { title, description, isPublished = true } = req.body
+
+  console.log({ isPublished })
+  console.log(typeof isPublished)
 
   const videoFileLocalPath = req.files?.videoFile ? req.files.videoFile[0].path : null
   if (!videoFileLocalPath) {
@@ -215,14 +219,21 @@ const getAllVideos = asyncHandler(async (req, res) => {
 })
 
 /* REQUIRES AUTHENTICATION AND AUTHORIZATION */
+// TODO CHANGE ON PRODUCTION
 
 const updateVideo = asyncHandler(async (req, res) => {
   const { videoId } = req.params
-  const { title, description } = req.body
+  const { title, description, isPublished } = req.body
   const thumbnailLocalPath = req.file?.path
 
-  if (!thumbnailLocalPath && !title?.trim() && !description?.trim()) {
-    throw new ApiError(400, 'Thumbnail, title or description field is required')
+  if (
+    !thumbnailLocalPath &&
+    !title?.trim() &&
+    !description?.trim() &&
+    isPublished !== 'false' &&
+    isPublished !== 'true'
+  ) {
+    throw new ApiError(400, 'Thumbnail, title , description or isPublished field is required')
   }
 
   const video = await Video.findById(videoId)
@@ -236,6 +247,10 @@ const updateVideo = asyncHandler(async (req, res) => {
     throw new ApiError(403, `You are not authorized to update this video`)
   }
 
+  if (isPublished === 'true' || isPublished === 'false') {
+    video.isPublished = isPublished
+  }
+
   if (title) {
     video.title = title
   }
@@ -244,15 +259,22 @@ const updateVideo = asyncHandler(async (req, res) => {
     video.description = description
   }
 
+  //* WITHOUT CLOUDINARY API
+
+  // if (thumbnailLocalPath) {
+  //   const uploadedThumbnail = await uploadOnCloudinary(thumbnailLocalPath)
+  //   if (!uploadedThumbnail) {
+  //     throw new ApiError(400, 'Thumbnail upload on cloudinary failed')
+  //   }
+
+  //   await deleteOnCloudinary(video?.thumbnail)
+
+  //   video.thumbnail = uploadedThumbnail?.url
+  // }
+
   if (thumbnailLocalPath) {
-    const uploadedThumbnail = await uploadOnCloudinary(thumbnailLocalPath)
-    if (!uploadedThumbnail) {
-      throw new ApiError(400, 'Thumbnail upload on cloudinary failed')
-    }
-
-    await deleteOnCloudinary(video?.thumbnail)
-
-    video.thumbnail = uploadedThumbnail?.url
+    if (fs.existsSync(video.thumbnail)) fs.unlinkSync(video.thumbnail)
+    video.thumbnail = thumbnailLocalPath
   }
 
   await video.save({ validateBeforeSave: false })
@@ -282,6 +304,7 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
 })
 
 /* REQUIRES AUTHENTICATION AND AUTHORIZATION */
+// TODO CHANGE ON PRODUCTION
 
 const deleteVideo = asyncHandler(async (req, res) => {
   const { videoId } = req.params
@@ -296,8 +319,11 @@ const deleteVideo = asyncHandler(async (req, res) => {
     throw new ApiError(403, `You are not authorized to delete this video`)
   }
 
-  await deleteOnCloudinary(video?.thumbnail)
-  await deleteOnCloudinary(video?.videoFile, 'video')
+  // await deleteOnCloudinary(video?.thumbnail)
+  // await deleteOnCloudinary(video?.videoFile, 'video')
+
+  if (fs.existsSync(video?.thumbnail)) fs.unlinkSync(video?.thumbnail)
+  if (fs.existsSync(video?.videoFile)) fs.unlinkSync(video?.videoFile)
 
   const videoComments = await Comment.find({ video: videoId })
 

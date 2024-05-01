@@ -187,6 +187,9 @@ const updateComment = asyncHandler(async (req, res) => {
   const { commentId } = req.params
   const { content } = req.body
 
+  console.log({ commentId })
+  console.log({ content })
+
   const existingComment = await Comment.findById(commentId)
   if (!existingComment) {
     throw new ApiError(404, 'Comment does not exist!')

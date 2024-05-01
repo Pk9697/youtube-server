@@ -7,6 +7,7 @@ import { Video } from '../../../models/video.model.js'
 import { ApiError } from '../../../utils/ApiError.js'
 import { ApiResponse } from '../../../utils/ApiResponse.js'
 import { asyncHandler } from '../../../utils/asyncHandler.js'
+import { Playlist } from '../../../models/playlist.model.js'
 
 const toggleVideoLike = asyncHandler(async (req, res) => {
   const { videoId } = req.params
@@ -25,14 +26,26 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
     owner: req.user._id,
   })
 
+  const likedVideosPlaylist = await Playlist.findOne({ name: 'LL', owner: req.user._id })
+
   if (existingLike) {
     await Like.findByIdAndDelete(existingLike._id)
+    if (likedVideosPlaylist) {
+      const filteredPlaylistVideos = await likedVideosPlaylist?.videos.filter((id) => !id.equals(videoId))
+      likedVideosPlaylist.videos = filteredPlaylistVideos
+      await likedVideosPlaylist.save({ validateBeforeSave: false })
+    }
   } else {
     await Dislike.deleteOne({ video: videoId, owner: req.user._id })
     await Like.create({
       video: videoId,
       owner: req.user._id,
     })
+    if (likedVideosPlaylist) {
+      const filteredPlaylistVideos = await likedVideosPlaylist?.videos.filter((id) => !id.equals(videoId))
+      likedVideosPlaylist.videos = [videoId, ...filteredPlaylistVideos]
+      await likedVideosPlaylist.save({ validateBeforeSave: false })
+    }
   }
 
   const videoWithLikesAndDislikesCount = await Video.aggregate([

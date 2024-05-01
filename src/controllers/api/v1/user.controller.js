@@ -1,11 +1,13 @@
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable import/prefer-default-export */
 import jwt from 'jsonwebtoken'
+import fs from 'fs'
 import { User } from '../../../models/user.model.js'
 import { ApiError } from '../../../utils/ApiError.js'
 import { ApiResponse } from '../../../utils/ApiResponse.js'
 import { asyncHandler } from '../../../utils/asyncHandler.js'
-import { deleteOnCloudinary, uploadOnCloudinary } from '../../../utils/cloudinary.js'
+// import { deleteOnCloudinary, uploadOnCloudinary } from '../../../utils/cloudinary.js'
+import { Playlist } from '../../../models/playlist.model.js'
 
 // don't use asyncHandler here cos it is associated with only controllers
 // and not helper functions like this generateAccessAndRefreshTokens
@@ -77,7 +79,7 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   // upload on cloudinary
-  // TODO USE CLOUDINARY API ON PRODUCTION -> UNCOMMENT LINES 80-98 AND COMMENT LINES 102-109
+  // TODO USE CLOUDINARY API ON PRODUCTION
 
   /*
   const uploadedAvatar = await uploadOnCloudinary(avatarLocalPath)
@@ -108,6 +110,21 @@ const registerUser = asyncHandler(async (req, res) => {
     email,
     userName: userName.toLowerCase(),
     password,
+  })
+
+  // create liked videos and watch later playlists for new user named LL and WL
+
+  await Playlist.create({
+    name: 'LL',
+    description: 'Liked Videos',
+    owner: user._id,
+    visibility: 'private',
+  })
+  await Playlist.create({
+    name: 'WL',
+    description: 'Watch Later',
+    owner: user._id,
+    visibility: 'private',
   })
 
   // pluck out fields from User ref using .select
@@ -280,18 +297,22 @@ const updatePassword = asyncHandler(async (req, res) => {
 
   const user = await User.findById(req.user?._id)
 
-  const { oldPassword, newPassword } = req.body
+  const { password, newPassword, confirmNewPassword } = req.body
 
-  const isPasswordValid = await user.isPasswordCorrect(oldPassword)
+  if (newPassword.trim() !== confirmNewPassword.trim()) {
+    throw new ApiError(400, 'Passwords do not match!')
+  }
+
+  const isPasswordValid = await user.isPasswordCorrect(password.trim())
   if (!isPasswordValid) {
-    throw new ApiError(400, 'Invalid Old Password!')
+    throw new ApiError(400, 'Invalid Password!')
   }
 
   // when it will go to save then pre hook will be called which we defined in user model,
   // which will hash our newPassword and save in db
 
-  user.password = newPassword
-  await user.save({ validateBeforeSave: false })
+  user.password = newPassword.trim()
+  await user.save({ validateBeforeSave: false, new: true })
 
   return res.status(200).json(new ApiResponse(200, {}, 'Password updated successfully!'))
 })
@@ -300,33 +321,33 @@ const updatePassword = asyncHandler(async (req, res) => {
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
   const { fullName, email } = req.body
-  if (!fullName && !email) {
+  if (!fullName.trim() && !email.trim()) {
     throw new ApiError(400, 'Fullname or email is required')
   }
 
-  const existingUser = await User.findOne({ email })
-  if (existingUser) {
+  const existingUser = await User.findOne({ email: email.trim() })
+  if (existingUser && !existingUser._id.equals(req.user._id)) {
     throw new ApiError(401, 'Email already exists!')
   }
 
   const user = await User.findById(req.user._id).select('-password -refreshToken')
 
-  if (fullName) {
-    user.fullName = fullName
+  if (fullName.trim() && fullName.trim() !== user.fullName) {
+    user.fullName = fullName.trim()
   }
 
-  if (email) {
-    user.email = email
+  if (email.trim() && email.trim() !== user.email) {
+    user.email = email.trim()
   }
 
-  await user.save({ validateBeforeSave: false })
+  await user.save({ validateBeforeSave: false, new: true })
 
   return res.status(200).json(new ApiResponse(200, user, 'Fullname or email updated successfully'))
 })
 
 /* REQUIRES AUTHENTICATION */
 /* REQUIRES MULTER MIDDLEWARE TO GET ACCESS TO UPLOADED FILE */
-
+// TODO: Use Cloudinary on production
 const updateAvatar = asyncHandler(async (req, res) => {
   // get uploaded file from client from req.file not req.files cos
   // here we would be accepting single file only so multer provides access to that file using req.file
@@ -335,16 +356,22 @@ const updateAvatar = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Avatar field is required')
   }
 
-  const uploadedAvatar = await uploadOnCloudinary(avatarLocalPath)
-  if (!uploadedAvatar) {
-    throw new ApiError(400, 'Avatar upload on cloudinary failed')
-  }
+  // const uploadedAvatar = await uploadOnCloudinary(avatarLocalPath)
+  // if (!uploadedAvatar) {
+  //   throw new ApiError(400, 'Avatar upload on cloudinary failed')
+  // }
 
-  const user = await User.findById(req.user._id)
-  await deleteOnCloudinary(user?.avatar)
+  // const user = await User.findById(req.user._id)
+  // await deleteOnCloudinary(user?.avatar)
 
-  user.avatar = uploadedAvatar.url
-  await user.save({ validateBeforeSave: false })
+  // user.avatar = uploadedAvatar.url
+  // await user.save({ validateBeforeSave: false, new: true })
+
+  const user = await User.findById(req.user._id).select('-password -refreshToken')
+  if (fs.existsSync(user.avatar)) fs.unlinkSync(user.avatar)
+
+  user.avatar = avatarLocalPath
+  await user.save({ validateBeforeSave: false, new: true })
 
   // or
   // const user = await User.findByIdAndUpdate(
@@ -362,24 +389,30 @@ const updateAvatar = asyncHandler(async (req, res) => {
 
 /* REQUIRES AUTHENTICATION */
 /* REQUIRES MULTER MIDDLEWARE TO GET ACCESS TO UPLOADED FILE */
-
+// TODO: Use Cloudinary on production
 const updateCoverImage = asyncHandler(async (req, res) => {
   const coverImageLocalPath = req.file?.path
   if (!coverImageLocalPath) {
     throw new ApiError(400, 'CoverImage field is required')
   }
 
-  const uploadedCoverImage = await uploadOnCloudinary(coverImageLocalPath)
-  if (!uploadedCoverImage) {
-    throw new ApiError(400, 'coverImage upload on cloudinary failed')
-  }
+  // const uploadedCoverImage = await uploadOnCloudinary(coverImageLocalPath)
+  // if (!uploadedCoverImage) {
+  //   throw new ApiError(400, 'coverImage upload on cloudinary failed')
+  // }
 
-  const user = await User.findById(req.user._id)
+  // const user = await User.findById(req.user._id)
 
-  await deleteOnCloudinary(user?.coverImage)
+  // await deleteOnCloudinary(user?.coverImage)
 
-  user.coverImage = uploadedCoverImage.url
-  await user.save({ validateBeforeSave: false })
+  // user.coverImage = uploadedCoverImage.url
+  // await user.save({ validateBeforeSave: false })
+
+  const user = await User.findById(req.user._id).select('-password -refreshToken')
+  if (fs.existsSync(user.coverImage)) fs.unlinkSync(user.coverImage)
+
+  user.coverImage = coverImageLocalPath
+  await user.save({ validateBeforeSave: false, new: true })
 
   // or
   // const user = await User.findByIdAndUpdate(

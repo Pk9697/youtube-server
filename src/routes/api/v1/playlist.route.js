@@ -4,6 +4,7 @@ import {
   addVideoToPlaylist,
   createPlaylist,
   deletePlaylist,
+  getLoggedInUserPlaylistIdByName,
   getPlaylistById,
   getUserPlaylists,
   removeVideoFromPlaylist,
@@ -28,4 +29,5 @@ router.route('/delete/:playlistId').delete(deletePlaylist)
 
 router.route('/update/:playlistId').patch(updatePlaylist)
 
+router.route('/id/:playlistName').get(getLoggedInUserPlaylistIdByName)
 export default router
