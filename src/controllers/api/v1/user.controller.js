@@ -172,7 +172,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
   const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id)
 
-  const loggedInUser = await User.findById(user._id).select('-password -refreshToken')
+  const loggedInUser = await User.findById(user._id).select('-password')
 
   // cookies options
   // cookies by default can be modified by anyone in frontend,
@@ -243,7 +243,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 // so this is the endpoint controller refreshAccessToken which we will make client hit when it's accessToken expires to refresh accessToken
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-  const incomingRefreshToken = req.cookies?.refreshToken || req.body.refreshToken
+  const incomingRefreshToken = req.cookies?.refreshToken || req.header('Authorization')?.replace('Bearer ', '')
   if (!incomingRefreshToken) {
     throw new ApiError(401, 'Unauthorized request! refreshToken not received')
   }
@@ -266,7 +266,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
   const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id)
 
-  const loggedInUser = await User.findById(user._id).select('-password -refreshToken')
+  const loggedInUser = await User.findById(user._id).select('-password')
 
   return res
     .status(200)
@@ -594,6 +594,10 @@ const getWatchHistory = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, user[0]?.watchHistory, 'User watch history fetched successfully'))
 })
 
+const verifyAccessToken = asyncHandler(async (req, res) => {
+  return res.status(200).json(new ApiResponse(200, req.user, 'Access token verified successfully!'))
+})
+
 export {
   registerUser,
   loginUser,
@@ -605,4 +609,5 @@ export {
   updateCoverImage,
   getUserProfile,
   getWatchHistory,
+  verifyAccessToken,
 }

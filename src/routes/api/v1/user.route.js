@@ -10,6 +10,7 @@ import {
   updateAvatar,
   updateCoverImage,
   updatePassword,
+  verifyAccessToken,
 } from '../../../controllers/api/v1/user.controller.js'
 import { upload } from '../../../middlewares/multer.middleware.js'
 import { verifyJwt } from '../../../middlewares/auth.middleware.js'
@@ -74,5 +75,9 @@ router.route('/profile/:userName').get(verifyJwt, getUserProfile)
 /* REQUIRES AUTHENTICATION */
 
 router.route('/watch-history').get(verifyJwt, getWatchHistory)
+
+/* REQUIRES AUTHENTICATION */
+
+router.route('/verify-access-token').get(verifyJwt, verifyAccessToken)
 
 export default router
