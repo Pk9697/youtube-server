@@ -1,13 +1,13 @@
 /* eslint-disable no-underscore-dangle */
 import mongoose from 'mongoose'
-import fs from 'fs'
-import { getVideoDurationInSeconds } from 'get-video-duration'
+// import fs from 'fs'
+// import { getVideoDurationInSeconds } from 'get-video-duration'
 import { User } from '../../../models/user.model.js'
 import { Video } from '../../../models/video.model.js'
 import { ApiError } from '../../../utils/ApiError.js'
 import { ApiResponse } from '../../../utils/ApiResponse.js'
 import { asyncHandler } from '../../../utils/asyncHandler.js'
-// import { deleteOnCloudinary, uploadOnCloudinary } from '../../../utils/cloudinary.js'
+import { deleteOnCloudinary, uploadOnCloudinary } from '../../../utils/cloudinary.js'
 import { Comment } from '../../../models/comment.model.js'
 import { Like } from '../../../models/like.model.js'
 import { Playlist } from '../../../models/playlist.model.js'
@@ -39,9 +39,6 @@ const incrementViewCountAndUpdateWatchHistory = async (videoId, userId) => {
 const uploadVideo = asyncHandler(async (req, res) => {
   const { title, description, isPublished = true } = req.body
 
-  console.log({ isPublished })
-  console.log(typeof isPublished)
-
   const videoFileLocalPath = req.files?.videoFile ? req.files.videoFile[0].path : null
   if (!videoFileLocalPath) {
     throw new ApiError(400, 'VideoFile field is required')
@@ -55,39 +52,41 @@ const uploadVideo = asyncHandler(async (req, res) => {
   // upload on cloudinary
   // TODO USE CLOUDINARY API ON PRODUCTION -> UNCOMMENT LINES 53-71 AND COMMENT LINES 75-85
 
-  // const uploadedVideoFile = await uploadOnCloudinary(videoFileLocalPath)
-  // if (!uploadedVideoFile) {
-  //   throw new ApiError(400, 'Video upload on cloudinary failed')
-  // }
+  const uploadedVideoFile = await uploadOnCloudinary(videoFileLocalPath)
+  if (!uploadedVideoFile) {
+    throw new ApiError(400, 'Video upload on cloudinary failed')
+  }
 
-  // const uploadedThumbnail = await uploadOnCloudinary(thumbnailLocalPath)
-  // if (!uploadedThumbnail) {
-  //   throw new ApiError(400, 'THumbnail upload on cloudinary failed')
-  // }
+  console.log({ uploadedVideoFile })
 
-  // const video = await Video.create({
-  //   videoFile: uploadedVideoFile?.url,
-  //   thumbnail: uploadedThumbnail?.url,
-  //   owner: req.user._id,
-  //   title,
-  //   description,
-  //   isPublished,
-  //   duration: uploadedVideoFile?.duration,
-  // })
-
-  //* WITHOUT CLOUDINARY API
-
-  const duration = await getVideoDurationInSeconds(videoFileLocalPath)
+  const uploadedThumbnail = await uploadOnCloudinary(thumbnailLocalPath)
+  if (!uploadedThumbnail) {
+    throw new ApiError(400, 'THumbnail upload on cloudinary failed')
+  }
 
   const video = await Video.create({
-    videoFile: videoFileLocalPath || '',
-    thumbnail: thumbnailLocalPath || '',
+    videoFile: uploadedVideoFile?.url,
+    thumbnail: uploadedThumbnail?.url,
     owner: req.user._id,
     title,
     description,
     isPublished,
-    duration,
+    duration: uploadedVideoFile?.duration,
   })
+
+  //* WITHOUT CLOUDINARY API
+
+  // const duration = await getVideoDurationInSeconds(videoFileLocalPath)
+
+  // const video = await Video.create({
+  //   videoFile: videoFileLocalPath || '',
+  //   thumbnail: thumbnailLocalPath || '',
+  //   owner: req.user._id,
+  //   title,
+  //   description,
+  //   isPublished,
+  //   duration,
+  // })
 
   if (!video) {
     throw new ApiError(500, 'Upload video failed')
@@ -259,23 +258,24 @@ const updateVideo = asyncHandler(async (req, res) => {
     video.description = description
   }
 
-  //* WITHOUT CLOUDINARY API
-
-  // if (thumbnailLocalPath) {
-  //   const uploadedThumbnail = await uploadOnCloudinary(thumbnailLocalPath)
-  //   if (!uploadedThumbnail) {
-  //     throw new ApiError(400, 'Thumbnail upload on cloudinary failed')
-  //   }
-
-  //   await deleteOnCloudinary(video?.thumbnail)
-
-  //   video.thumbnail = uploadedThumbnail?.url
-  // }
+  //* WITH CLOUDINARY API
 
   if (thumbnailLocalPath) {
-    if (fs.existsSync(video.thumbnail)) fs.unlinkSync(video.thumbnail)
-    video.thumbnail = thumbnailLocalPath
+    const uploadedThumbnail = await uploadOnCloudinary(thumbnailLocalPath)
+    if (!uploadedThumbnail) {
+      throw new ApiError(400, 'Thumbnail upload on cloudinary failed')
+    }
+
+    await deleteOnCloudinary(video?.thumbnail)
+
+    video.thumbnail = uploadedThumbnail?.url
   }
+
+  //* WITHOUT CLOUDINARY API
+  // if (thumbnailLocalPath) {
+  //   if (fs.existsSync(video.thumbnail)) fs.unlinkSync(video.thumbnail)
+  //   video.thumbnail = thumbnailLocalPath
+  // }
 
   await video.save({ validateBeforeSave: false })
 
@@ -319,11 +319,13 @@ const deleteVideo = asyncHandler(async (req, res) => {
     throw new ApiError(403, `You are not authorized to delete this video`)
   }
 
-  // await deleteOnCloudinary(video?.thumbnail)
-  // await deleteOnCloudinary(video?.videoFile, 'video')
+  // WITH CLOUDINARY
+  await deleteOnCloudinary(video?.thumbnail)
+  await deleteOnCloudinary(video?.videoFile, 'video')
 
-  if (fs.existsSync(video?.thumbnail)) fs.unlinkSync(video?.thumbnail)
-  if (fs.existsSync(video?.videoFile)) fs.unlinkSync(video?.videoFile)
+  // WITHOUT CLOUDINARY
+  // if (fs.existsSync(video?.thumbnail)) fs.unlinkSync(video?.thumbnail)
+  // if (fs.existsSync(video?.videoFile)) fs.unlinkSync(video?.videoFile)
 
   const videoComments = await Comment.find({ video: videoId })
 

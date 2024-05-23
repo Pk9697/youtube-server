@@ -1,12 +1,12 @@
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable import/prefer-default-export */
 import jwt from 'jsonwebtoken'
-import fs from 'fs'
+// import fs from 'fs'
 import { User } from '../../../models/user.model.js'
 import { ApiError } from '../../../utils/ApiError.js'
 import { ApiResponse } from '../../../utils/ApiResponse.js'
 import { asyncHandler } from '../../../utils/asyncHandler.js'
-// import { deleteOnCloudinary, uploadOnCloudinary } from '../../../utils/cloudinary.js'
+import { deleteOnCloudinary, uploadOnCloudinary } from '../../../utils/cloudinary.js'
 import { Playlist } from '../../../models/playlist.model.js'
 
 // don't use asyncHandler here cos it is associated with only controllers
@@ -81,7 +81,6 @@ const registerUser = asyncHandler(async (req, res) => {
   // upload on cloudinary
   // TODO USE CLOUDINARY API ON PRODUCTION
 
-  /*
   const uploadedAvatar = await uploadOnCloudinary(avatarLocalPath)
   const uploadedCoverImage = coverImageLocalPath ? await uploadOnCloudinary(coverImageLocalPath) : null
 
@@ -89,7 +88,7 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Avatar upload on cloudinary failed')
   }
 
-  create User object
+  // create User object
 
   const user = await User.create({
     fullName,
@@ -99,18 +98,17 @@ const registerUser = asyncHandler(async (req, res) => {
     userName: userName.toLowerCase(),
     password,
   })
-  */
 
   //* WITHOUT CLOUDINARY API
 
-  const user = await User.create({
-    fullName,
-    avatar: avatarLocalPath,
-    coverImage: coverImageLocalPath || '',
-    email,
-    userName: userName.toLowerCase(),
-    password,
-  })
+  // const user = await User.create({
+  //   fullName,
+  //   avatar: avatarLocalPath,
+  //   coverImage: coverImageLocalPath || '',
+  //   email,
+  //   userName: userName.toLowerCase(),
+  //   password,
+  // })
 
   // create liked videos and watch later playlists for new user named LL and WL
 
@@ -356,22 +354,23 @@ const updateAvatar = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Avatar field is required')
   }
 
-  // const uploadedAvatar = await uploadOnCloudinary(avatarLocalPath)
-  // if (!uploadedAvatar) {
-  //   throw new ApiError(400, 'Avatar upload on cloudinary failed')
-  // }
-
-  // const user = await User.findById(req.user._id)
-  // await deleteOnCloudinary(user?.avatar)
-
-  // user.avatar = uploadedAvatar.url
-  // await user.save({ validateBeforeSave: false, new: true })
-
+  const uploadedAvatar = await uploadOnCloudinary(avatarLocalPath)
+  if (!uploadedAvatar) {
+    throw new ApiError(400, 'Avatar upload on cloudinary failed')
+  }
+  // WITH CLOUDINARY
   const user = await User.findById(req.user._id).select('-password -refreshToken')
-  if (fs.existsSync(user.avatar)) fs.unlinkSync(user.avatar)
+  await deleteOnCloudinary(user?.avatar)
 
-  user.avatar = avatarLocalPath
+  user.avatar = uploadedAvatar.url
   await user.save({ validateBeforeSave: false, new: true })
+
+  // WITHOUT CLOUDINARY
+  // const user = await User.findById(req.user._id).select('-password -refreshToken')
+  // if (fs.existsSync(user.avatar)) fs.unlinkSync(user.avatar)
+
+  // user.avatar = avatarLocalPath
+  // await user.save({ validateBeforeSave: false, new: true })
 
   // or
   // const user = await User.findByIdAndUpdate(
@@ -396,23 +395,25 @@ const updateCoverImage = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'CoverImage field is required')
   }
 
-  // const uploadedCoverImage = await uploadOnCloudinary(coverImageLocalPath)
-  // if (!uploadedCoverImage) {
-  //   throw new ApiError(400, 'coverImage upload on cloudinary failed')
-  // }
-
-  // const user = await User.findById(req.user._id)
-
-  // await deleteOnCloudinary(user?.coverImage)
-
-  // user.coverImage = uploadedCoverImage.url
-  // await user.save({ validateBeforeSave: false })
+  // WITH CLOUDINARY
+  const uploadedCoverImage = await uploadOnCloudinary(coverImageLocalPath)
+  if (!uploadedCoverImage) {
+    throw new ApiError(400, 'coverImage upload on cloudinary failed')
+  }
 
   const user = await User.findById(req.user._id).select('-password -refreshToken')
-  if (fs.existsSync(user.coverImage)) fs.unlinkSync(user.coverImage)
 
-  user.coverImage = coverImageLocalPath
-  await user.save({ validateBeforeSave: false, new: true })
+  await deleteOnCloudinary(user?.coverImage)
+
+  user.coverImage = uploadedCoverImage.url
+  await user.save({ validateBeforeSave: false })
+
+  // WITHOUT CLOUDINARY
+  // const user = await User.findById(req.user._id).select('-password -refreshToken')
+  // if (fs.existsSync(user.coverImage)) fs.unlinkSync(user.coverImage)
+
+  // user.coverImage = coverImageLocalPath
+  // await user.save({ validateBeforeSave: false, new: true })
 
   // or
   // const user = await User.findByIdAndUpdate(
