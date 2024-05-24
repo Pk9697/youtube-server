@@ -1,5 +1,7 @@
 /* eslint-disable import/prefer-default-export */
 
+import { emptyFolder } from './emptyFolder.js'
+
 // asyncHandler will be our wrapper to avoid try catch block which we will have to write inside every controller
 // this fxn will accept fxn as a parameter and will return a fxn on executing so it is a higher order fxn
 // a higher order fxn is a fxn which accepts or returns a fxn
@@ -12,6 +14,7 @@ const asyncHandler = (requestHandler) => async (req, res, next) => {
     return await requestHandler(req, res, next)
   } catch (err) {
     console.error(err)
+    emptyFolder('./public/temp')
     return res.status(err.statusCode || 500).json({
       success: false,
       message: err.message,

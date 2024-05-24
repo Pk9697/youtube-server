@@ -57,16 +57,14 @@ const uploadVideo = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Video upload on cloudinary failed')
   }
 
-  console.log({ uploadedVideoFile })
-
   const uploadedThumbnail = await uploadOnCloudinary(thumbnailLocalPath)
   if (!uploadedThumbnail) {
     throw new ApiError(400, 'THumbnail upload on cloudinary failed')
   }
 
   const video = await Video.create({
-    videoFile: uploadedVideoFile?.url,
-    thumbnail: uploadedThumbnail?.url,
+    videoFile: uploadedVideoFile?.secure_url,
+    thumbnail: uploadedThumbnail?.secure_url,
     owner: req.user._id,
     title,
     description,
@@ -268,7 +266,7 @@ const updateVideo = asyncHandler(async (req, res) => {
 
     await deleteOnCloudinary(video?.thumbnail)
 
-    video.thumbnail = uploadedThumbnail?.url
+    video.thumbnail = uploadedThumbnail?.secure_url
   }
 
   //* WITHOUT CLOUDINARY API

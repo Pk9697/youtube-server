@@ -92,8 +92,8 @@ const registerUser = asyncHandler(async (req, res) => {
 
   const user = await User.create({
     fullName,
-    avatar: uploadedAvatar?.url,
-    coverImage: uploadedCoverImage?.url || '',
+    avatar: uploadedAvatar?.secure_url,
+    coverImage: uploadedCoverImage?.secure_url || '',
     email,
     userName: userName.toLowerCase(),
     password,
@@ -362,7 +362,7 @@ const updateAvatar = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id).select('-password -refreshToken')
   await deleteOnCloudinary(user?.avatar)
 
-  user.avatar = uploadedAvatar.url
+  user.avatar = uploadedAvatar.secure_url
   await user.save({ validateBeforeSave: false, new: true })
 
   // WITHOUT CLOUDINARY
@@ -405,7 +405,7 @@ const updateCoverImage = asyncHandler(async (req, res) => {
 
   await deleteOnCloudinary(user?.coverImage)
 
-  user.coverImage = uploadedCoverImage.url
+  user.coverImage = uploadedCoverImage.secure_url
   await user.save({ validateBeforeSave: false })
 
   // WITHOUT CLOUDINARY
